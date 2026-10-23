@@ -1,0 +1,1676 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:intl/intl.dart' as intl;
+
+import 'app_localizations_en.dart';
+import 'app_localizations_zh.dart';
+
+// ignore_for_file: type=lint
+
+/// Callers can lookup localized strings with an instance of AppLocalizations
+/// returned by `AppLocalizations.of(context)`.
+///
+/// Applications need to include `AppLocalizations.delegate()` in their app's
+/// `localizationDelegates` list, and the locales they support in the app's
+/// `supportedLocales` list. For example:
+///
+/// ```dart
+/// import 'l10n/app_localizations.dart';
+///
+/// return MaterialApp(
+///   localizationsDelegates: AppLocalizations.localizationsDelegates,
+///   supportedLocales: AppLocalizations.supportedLocales,
+///   home: MyApplicationHome(),
+/// );
+/// ```
+///
+/// ## Update pubspec.yaml
+///
+/// Please make sure to update your pubspec.yaml to include the following
+/// packages:
+///
+/// ```yaml
+/// dependencies:
+///   # Internationalization support.
+///   flutter_localizations:
+///     sdk: flutter
+///   intl: any # Use the pinned version from flutter_localizations
+///
+///   # Rest of dependencies
+/// ```
+///
+/// ## iOS Applications
+///
+/// iOS applications define key application metadata, including supported
+/// locales, in an Info.plist file that is built into the application bundle.
+/// To configure the locales supported by your app, you’ll need to edit this
+/// file.
+///
+/// First, open your project’s ios/Runner.xcworkspace Xcode workspace file.
+/// Then, in the Project Navigator, open the Info.plist file under the Runner
+/// project’s Runner folder.
+///
+/// Next, select the Information Property List item, select Add Item from the
+/// Editor menu, then select Localizations from the pop-up menu.
+///
+/// Select and expand the newly-created Localizations item then, for each
+/// locale your application supports, add a new item and select the locale
+/// you wish to add from the pop-up menu in the Value field. This list should
+/// be consistent with the languages listed in the AppLocalizations.supportedLocales
+/// property.
+abstract class AppLocalizations {
+  AppLocalizations(String locale)
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+
+  final String localeName;
+
+  static AppLocalizations? of(BuildContext context) {
+    return Localizations.of<AppLocalizations>(context, AppLocalizations);
+  }
+
+  static const LocalizationsDelegate<AppLocalizations> delegate =
+      _AppLocalizationsDelegate();
+
+  /// A list of this localizations delegate along with the default localizations
+  /// delegates.
+  ///
+  /// Returns a list of localizations delegates containing this delegate along with
+  /// GlobalMaterialLocalizations.delegate, GlobalCupertinoLocalizations.delegate,
+  /// and GlobalWidgetsLocalizations.delegate.
+  ///
+  /// Additional delegates can be added by appending to this list in
+  /// MaterialApp. This list does not have to be used at all if a custom list
+  /// of delegates is preferred or required.
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
+      <LocalizationsDelegate<dynamic>>[
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
+
+  /// A list of this localizations delegate's supported locales.
+  static const List<Locale> supportedLocales = <Locale>[
+    Locale('en'),
+    Locale('zh'),
+  ];
+
+  /// No description provided for @appTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'Mconnect'**
+  String get appTitle;
+
+  /// No description provided for @navSearch.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索'**
+  String get navSearch;
+
+  /// No description provided for @navDiscover.
+  ///
+  /// In zh, this message translates to:
+  /// **'发现'**
+  String get navDiscover;
+
+  /// No description provided for @navLibrary.
+  ///
+  /// In zh, this message translates to:
+  /// **'音乐库'**
+  String get navLibrary;
+
+  /// No description provided for @navDownloads.
+  ///
+  /// In zh, this message translates to:
+  /// **'下载'**
+  String get navDownloads;
+
+  /// No description provided for @settingsTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'设置'**
+  String get settingsTitle;
+
+  /// No description provided for @settingsAccounts.
+  ///
+  /// In zh, this message translates to:
+  /// **'账号管理'**
+  String get settingsAccounts;
+
+  /// No description provided for @settingsAccountsSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'网易云音乐、QQ 音乐、酷狗音乐、哔哩哔哩登录状态'**
+  String get settingsAccountsSubtitle;
+
+  /// No description provided for @settingsAppearance.
+  ///
+  /// In zh, this message translates to:
+  /// **'外观'**
+  String get settingsAppearance;
+
+  /// No description provided for @settingsAppearanceSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'主题模式、主题色与自定义背景'**
+  String get settingsAppearanceSubtitle;
+
+  /// No description provided for @settingsFloatingLyrics.
+  ///
+  /// In zh, this message translates to:
+  /// **'悬浮歌词'**
+  String get settingsFloatingLyrics;
+
+  /// No description provided for @settingsFloatingLyricsSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'桌面歌词开关、颜色、字号与阴影'**
+  String get settingsFloatingLyricsSubtitle;
+
+  /// No description provided for @settingsAudio.
+  ///
+  /// In zh, this message translates to:
+  /// **'音频增强'**
+  String get settingsAudio;
+
+  /// No description provided for @settingsAudioSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'淡入淡出、均衡器与睡眠定时'**
+  String get settingsAudioSubtitle;
+
+  /// No description provided for @settingsDiagnostics.
+  ///
+  /// In zh, this message translates to:
+  /// **'诊断与关于'**
+  String get settingsDiagnostics;
+
+  /// No description provided for @settingsDiagnosticsSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'日志位置与应用版本'**
+  String get settingsDiagnosticsSubtitle;
+
+  /// No description provided for @settingsBackup.
+  ///
+  /// In zh, this message translates to:
+  /// **'备份与恢复'**
+  String get settingsBackup;
+
+  /// No description provided for @settingsBackupSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'导出/导入收藏、歌单、统计与设置'**
+  String get settingsBackupSubtitle;
+
+  /// No description provided for @settingsExportDiagnostics.
+  ///
+  /// In zh, this message translates to:
+  /// **'导出诊断日志'**
+  String get settingsExportDiagnostics;
+
+  /// No description provided for @settingsExportDiagnosticsSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'打包最近事件与日志并分享（已脱敏）'**
+  String get settingsExportDiagnosticsSubtitle;
+
+  /// No description provided for @settingsAccountsTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'账号管理'**
+  String get settingsAccountsTitle;
+
+  /// No description provided for @settingsAppearanceTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'外观'**
+  String get settingsAppearanceTitle;
+
+  /// No description provided for @settingsFloatingLyricsTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'悬浮歌词'**
+  String get settingsFloatingLyricsTitle;
+
+  /// No description provided for @settingsAudioTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'音频增强'**
+  String get settingsAudioTitle;
+
+  /// No description provided for @settingsDiagnosticsTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'诊断与关于'**
+  String get settingsDiagnosticsTitle;
+
+  /// No description provided for @themeFollowSystem.
+  ///
+  /// In zh, this message translates to:
+  /// **'跟随系统'**
+  String get themeFollowSystem;
+
+  /// No description provided for @themeLight.
+  ///
+  /// In zh, this message translates to:
+  /// **'浅色模式'**
+  String get themeLight;
+
+  /// No description provided for @themeDark.
+  ///
+  /// In zh, this message translates to:
+  /// **'深色模式'**
+  String get themeDark;
+
+  /// No description provided for @themeColor.
+  ///
+  /// In zh, this message translates to:
+  /// **'主题色'**
+  String get themeColor;
+
+  /// No description provided for @themeColorSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'影响按钮、进度条、导航栏和高亮状态'**
+  String get themeColorSubtitle;
+
+  /// No description provided for @uiStyle.
+  ///
+  /// In zh, this message translates to:
+  /// **'UI 风格'**
+  String get uiStyle;
+
+  /// No description provided for @uiStyleMaterial.
+  ///
+  /// In zh, this message translates to:
+  /// **'Material 风格'**
+  String get uiStyleMaterial;
+
+  /// No description provided for @uiStyleMiuix.
+  ///
+  /// In zh, this message translates to:
+  /// **'Miuix 风格'**
+  String get uiStyleMiuix;
+
+  /// No description provided for @backgroundRemoved.
+  ///
+  /// In zh, this message translates to:
+  /// **'已移除自定义背景'**
+  String get backgroundRemoved;
+
+  /// No description provided for @backgroundApplied.
+  ///
+  /// In zh, this message translates to:
+  /// **'已应用自定义背景'**
+  String get backgroundApplied;
+
+  /// No description provided for @backgroundUpdated.
+  ///
+  /// In zh, this message translates to:
+  /// **'已更新自定义背景'**
+  String get backgroundUpdated;
+
+  /// No description provided for @backgroundImageUnreadable.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法读取所选图片'**
+  String get backgroundImageUnreadable;
+
+  /// No description provided for @backgroundImageSizeUnreadable.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法读取图片尺寸'**
+  String get backgroundImageSizeUnreadable;
+
+  /// No description provided for @backgroundFileMissing.
+  ///
+  /// In zh, this message translates to:
+  /// **'背景图片文件不存在，请重新选择'**
+  String get backgroundFileMissing;
+
+  /// No description provided for @backgroundProcessFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'背景图片处理失败：{error}'**
+  String backgroundProcessFailed(String error);
+
+  /// No description provided for @customBackground.
+  ///
+  /// In zh, this message translates to:
+  /// **'自定义背景'**
+  String get customBackground;
+
+  /// No description provided for @customBackgroundEnabledHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'已启用，点击重新调整背景位置'**
+  String get customBackgroundEnabledHint;
+
+  /// No description provided for @customBackgroundChooseHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择图片作为全应用背景'**
+  String get customBackgroundChooseHint;
+
+  /// No description provided for @removeBackground.
+  ///
+  /// In zh, this message translates to:
+  /// **'移除背景'**
+  String get removeBackground;
+
+  /// No description provided for @adjustBackground.
+  ///
+  /// In zh, this message translates to:
+  /// **'调整背景'**
+  String get adjustBackground;
+
+  /// No description provided for @backgroundEditorHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'拖动图片调整位置，双指缩放到合适大小'**
+  String get backgroundEditorHint;
+
+  /// No description provided for @floatingLyricsEnable.
+  ///
+  /// In zh, this message translates to:
+  /// **'桌面悬浮歌词'**
+  String get floatingLyricsEnable;
+
+  /// No description provided for @floatingLyricsEnableSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'在桌面顶部显示歌词，支持拖拽、缩放和锁定'**
+  String get floatingLyricsEnableSubtitle;
+
+  /// No description provided for @floatingLyricsPermissionSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'显示在其他应用上方，需要系统悬浮窗权限'**
+  String get floatingLyricsPermissionSubtitle;
+
+  /// No description provided for @floatingLyricsLock.
+  ///
+  /// In zh, this message translates to:
+  /// **'锁定位置'**
+  String get floatingLyricsLock;
+
+  /// No description provided for @floatingLyricsLockSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'锁定后悬浮歌词不可移动、不可点击，触摸会直接落到下面的应用；关闭悬浮歌词会自动解锁'**
+  String get floatingLyricsLockSubtitle;
+
+  /// No description provided for @floatingLyricsTextColor.
+  ///
+  /// In zh, this message translates to:
+  /// **'歌词底色'**
+  String get floatingLyricsTextColor;
+
+  /// No description provided for @floatingLyricsTextColorSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'未播放部分的文字颜色，默认白色'**
+  String get floatingLyricsTextColorSubtitle;
+
+  /// No description provided for @floatingLyricsHighlightColor.
+  ///
+  /// In zh, this message translates to:
+  /// **'已播放高亮色'**
+  String get floatingLyricsHighlightColor;
+
+  /// No description provided for @floatingLyricsHighlightColorSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'唱到的部分变为该颜色，悬浮窗里的圆点也调它'**
+  String get floatingLyricsHighlightColorSubtitle;
+
+  /// No description provided for @floatingLyricsFontSize.
+  ///
+  /// In zh, this message translates to:
+  /// **'字号'**
+  String get floatingLyricsFontSize;
+
+  /// No description provided for @floatingLyricsStrokeWidth.
+  ///
+  /// In zh, this message translates to:
+  /// **'描边强度'**
+  String get floatingLyricsStrokeWidth;
+
+  /// No description provided for @floatingLyricsShadowOpacity.
+  ///
+  /// In zh, this message translates to:
+  /// **'阴影强度'**
+  String get floatingLyricsShadowOpacity;
+
+  /// No description provided for @customColor.
+  ///
+  /// In zh, this message translates to:
+  /// **'自定义颜色'**
+  String get customColor;
+
+  /// No description provided for @defaultLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'默认'**
+  String get defaultLabel;
+
+  /// No description provided for @audioFade.
+  ///
+  /// In zh, this message translates to:
+  /// **'淡入淡出'**
+  String get audioFade;
+
+  /// No description provided for @audioFadeSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'播放、暂停时平滑调整音量，默认关闭'**
+  String get audioFadeSubtitle;
+
+  /// No description provided for @audioFadeDuration.
+  ///
+  /// In zh, this message translates to:
+  /// **'淡入淡出时长'**
+  String get audioFadeDuration;
+
+  /// No description provided for @audioEqualizer.
+  ///
+  /// In zh, this message translates to:
+  /// **'均衡器'**
+  String get audioEqualizer;
+
+  /// No description provided for @audioEqualizerSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'调整播放音频的频段增益，设备不支持时会自动忽略'**
+  String get audioEqualizerSubtitle;
+
+  /// No description provided for @audioEqualizerPreset.
+  ///
+  /// In zh, this message translates to:
+  /// **'均衡器预设'**
+  String get audioEqualizerPreset;
+
+  /// No description provided for @audioBandLow.
+  ///
+  /// In zh, this message translates to:
+  /// **'低频'**
+  String get audioBandLow;
+
+  /// No description provided for @audioBandLowMid.
+  ///
+  /// In zh, this message translates to:
+  /// **'中低频'**
+  String get audioBandLowMid;
+
+  /// No description provided for @audioBandMid.
+  ///
+  /// In zh, this message translates to:
+  /// **'中频'**
+  String get audioBandMid;
+
+  /// No description provided for @audioBandHighMid.
+  ///
+  /// In zh, this message translates to:
+  /// **'中高频'**
+  String get audioBandHighMid;
+
+  /// No description provided for @audioBandHigh.
+  ///
+  /// In zh, this message translates to:
+  /// **'高频'**
+  String get audioBandHigh;
+
+  /// No description provided for @audioSleepTimer.
+  ///
+  /// In zh, this message translates to:
+  /// **'睡眠定时'**
+  String get audioSleepTimer;
+
+  /// No description provided for @audioSleepTimerRemaining.
+  ///
+  /// In zh, this message translates to:
+  /// **'剩余 {time}'**
+  String audioSleepTimerRemaining(String time);
+
+  /// No description provided for @audioSleepTimerCountdown.
+  ///
+  /// In zh, this message translates to:
+  /// **'{minutes} 分钟后暂停播放'**
+  String audioSleepTimerCountdown(int minutes);
+
+  /// No description provided for @audioSleepTimerDuration.
+  ///
+  /// In zh, this message translates to:
+  /// **'定时时长'**
+  String get audioSleepTimerDuration;
+
+  /// No description provided for @audioMinutes.
+  ///
+  /// In zh, this message translates to:
+  /// **'{minutes} 分钟'**
+  String audioMinutes(int minutes);
+
+  /// No description provided for @diagnosticsSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'诊断'**
+  String get diagnosticsSection;
+
+  /// No description provided for @aboutSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'关于'**
+  String get aboutSection;
+
+  /// No description provided for @version.
+  ///
+  /// In zh, this message translates to:
+  /// **'版本'**
+  String get version;
+
+  /// No description provided for @diagnosticsLog.
+  ///
+  /// In zh, this message translates to:
+  /// **'诊断日志'**
+  String get diagnosticsLog;
+
+  /// No description provided for @diagnosticsLogPathCopied.
+  ///
+  /// In zh, this message translates to:
+  /// **'日志路径已复制'**
+  String get diagnosticsLogPathCopied;
+
+  /// No description provided for @diagnosticsLogCleared.
+  ///
+  /// In zh, this message translates to:
+  /// **'诊断日志已清空'**
+  String get diagnosticsLogCleared;
+
+  /// No description provided for @copyPath.
+  ///
+  /// In zh, this message translates to:
+  /// **'复制路径'**
+  String get copyPath;
+
+  /// No description provided for @clearLog.
+  ///
+  /// In zh, this message translates to:
+  /// **'清空日志'**
+  String get clearLog;
+
+  /// No description provided for @diagnosticsExporting.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在导出诊断日志…'**
+  String get diagnosticsExporting;
+
+  /// No description provided for @diagnosticsExported.
+  ///
+  /// In zh, this message translates to:
+  /// **'诊断日志已导出'**
+  String get diagnosticsExported;
+
+  /// No description provided for @diagnosticsExportPathCopied.
+  ///
+  /// In zh, this message translates to:
+  /// **'诊断日志已导出，文件路径已复制到剪贴板'**
+  String get diagnosticsExportPathCopied;
+
+  /// No description provided for @diagnosticsExportFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'导出失败：{error}'**
+  String diagnosticsExportFailed(String error);
+
+  /// No description provided for @share.
+  ///
+  /// In zh, this message translates to:
+  /// **'分享'**
+  String get share;
+
+  /// No description provided for @accountLoggedIn.
+  ///
+  /// In zh, this message translates to:
+  /// **'已登录'**
+  String get accountLoggedIn;
+
+  /// No description provided for @accountTapToLogin.
+  ///
+  /// In zh, this message translates to:
+  /// **'点击登录'**
+  String get accountTapToLogin;
+
+  /// No description provided for @accountLogout.
+  ///
+  /// In zh, this message translates to:
+  /// **'退出登录'**
+  String get accountLogout;
+
+  /// No description provided for @accountLogoutConfirm.
+  ///
+  /// In zh, this message translates to:
+  /// **'确定要退出 {platform} 账号吗？'**
+  String accountLogoutConfirm(String platform);
+
+  /// No description provided for @actionSave.
+  ///
+  /// In zh, this message translates to:
+  /// **'保存'**
+  String get actionSave;
+
+  /// No description provided for @actionCancel.
+  ///
+  /// In zh, this message translates to:
+  /// **'取消'**
+  String get actionCancel;
+
+  /// No description provided for @actionReset.
+  ///
+  /// In zh, this message translates to:
+  /// **'重置'**
+  String get actionReset;
+
+  /// No description provided for @actionLogout.
+  ///
+  /// In zh, this message translates to:
+  /// **'退出'**
+  String get actionLogout;
+
+  /// No description provided for @commonRetry.
+  ///
+  /// In zh, this message translates to:
+  /// **'重试'**
+  String get commonRetry;
+
+  /// No description provided for @commonPlayNext.
+  ///
+  /// In zh, this message translates to:
+  /// **'下一首播放'**
+  String get commonPlayNext;
+
+  /// No description provided for @commonAddToPlaylist.
+  ///
+  /// In zh, this message translates to:
+  /// **'添加到歌单'**
+  String get commonAddToPlaylist;
+
+  /// No description provided for @commonDownload.
+  ///
+  /// In zh, this message translates to:
+  /// **'下载'**
+  String get commonDownload;
+
+  /// No description provided for @commonDownloaded.
+  ///
+  /// In zh, this message translates to:
+  /// **'已下载'**
+  String get commonDownloaded;
+
+  /// No description provided for @commonLike.
+  ///
+  /// In zh, this message translates to:
+  /// **'喜欢'**
+  String get commonLike;
+
+  /// No description provided for @commonUnlike.
+  ///
+  /// In zh, this message translates to:
+  /// **'取消喜欢'**
+  String get commonUnlike;
+
+  /// No description provided for @commonCopyLink.
+  ///
+  /// In zh, this message translates to:
+  /// **'复制链接'**
+  String get commonCopyLink;
+
+  /// No description provided for @playerNowPlaying.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在播放'**
+  String get playerNowPlaying;
+
+  /// No description provided for @playerNotPlaying.
+  ///
+  /// In zh, this message translates to:
+  /// **'未在播放'**
+  String get playerNotPlaying;
+
+  /// No description provided for @playerAddedToLikes.
+  ///
+  /// In zh, this message translates to:
+  /// **'已收藏到我喜欢'**
+  String get playerAddedToLikes;
+
+  /// No description provided for @playerRemovedFromLikes.
+  ///
+  /// In zh, this message translates to:
+  /// **'已取消收藏'**
+  String get playerRemovedFromLikes;
+
+  /// No description provided for @playerAddedToQueue.
+  ///
+  /// In zh, this message translates to:
+  /// **'已添加到播放队列'**
+  String get playerAddedToQueue;
+
+  /// No description provided for @playerSongInfoCopied.
+  ///
+  /// In zh, this message translates to:
+  /// **'歌曲信息已复制'**
+  String get playerSongInfoCopied;
+
+  /// No description provided for @playerPlaybackSettings.
+  ///
+  /// In zh, this message translates to:
+  /// **'播放设置'**
+  String get playerPlaybackSettings;
+
+  /// No description provided for @playerAddToPlatformPlaylist.
+  ///
+  /// In zh, this message translates to:
+  /// **'添加到平台歌单'**
+  String get playerAddToPlatformPlaylist;
+
+  /// No description provided for @playerAddToQueue.
+  ///
+  /// In zh, this message translates to:
+  /// **'加入播放队列'**
+  String get playerAddToQueue;
+
+  /// No description provided for @playerCopySongInfo.
+  ///
+  /// In zh, this message translates to:
+  /// **'复制歌曲信息'**
+  String get playerCopySongInfo;
+
+  /// No description provided for @playerAddedToPlaylist.
+  ///
+  /// In zh, this message translates to:
+  /// **'已添加到歌单'**
+  String get playerAddedToPlaylist;
+
+  /// No description provided for @playerAddToPlaylistFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'添加失败，当前平台可能暂不支持编辑该歌单'**
+  String get playerAddToPlaylistFailed;
+
+  /// No description provided for @playerPlay.
+  ///
+  /// In zh, this message translates to:
+  /// **'播放'**
+  String get playerPlay;
+
+  /// No description provided for @playerPause.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂停'**
+  String get playerPause;
+
+  /// No description provided for @playerPrevious.
+  ///
+  /// In zh, this message translates to:
+  /// **'上一首'**
+  String get playerPrevious;
+
+  /// No description provided for @playerNext.
+  ///
+  /// In zh, this message translates to:
+  /// **'下一首'**
+  String get playerNext;
+
+  /// No description provided for @playerShuffle.
+  ///
+  /// In zh, this message translates to:
+  /// **'随机播放'**
+  String get playerShuffle;
+
+  /// No description provided for @playerRepeat.
+  ///
+  /// In zh, this message translates to:
+  /// **'循环模式'**
+  String get playerRepeat;
+
+  /// No description provided for @playerToggleLyrics.
+  ///
+  /// In zh, this message translates to:
+  /// **'显示歌词'**
+  String get playerToggleLyrics;
+
+  /// No description provided for @playerToggleArtwork.
+  ///
+  /// In zh, this message translates to:
+  /// **'显示封面'**
+  String get playerToggleArtwork;
+
+  /// No description provided for @playerLike.
+  ///
+  /// In zh, this message translates to:
+  /// **'我喜欢'**
+  String get playerLike;
+
+  /// No description provided for @playerCollapse.
+  ///
+  /// In zh, this message translates to:
+  /// **'收起'**
+  String get playerCollapse;
+
+  /// No description provided for @moreActions.
+  ///
+  /// In zh, this message translates to:
+  /// **'更多操作'**
+  String get moreActions;
+
+  /// No description provided for @platformLocal.
+  ///
+  /// In zh, this message translates to:
+  /// **'本地音乐'**
+  String get platformLocal;
+
+  /// No description provided for @platformNetease.
+  ///
+  /// In zh, this message translates to:
+  /// **'网易云音乐'**
+  String get platformNetease;
+
+  /// No description provided for @platformQq.
+  ///
+  /// In zh, this message translates to:
+  /// **'QQ 音乐'**
+  String get platformQq;
+
+  /// No description provided for @platformKugou.
+  ///
+  /// In zh, this message translates to:
+  /// **'酷狗音乐'**
+  String get platformKugou;
+
+  /// No description provided for @platformBilibili.
+  ///
+  /// In zh, this message translates to:
+  /// **'哔哩哔哩音乐'**
+  String get platformBilibili;
+
+  /// No description provided for @sessionExpired.
+  ///
+  /// In zh, this message translates to:
+  /// **'登录已过期，请重新登录'**
+  String get sessionExpired;
+
+  /// No description provided for @sessionGoToLogin.
+  ///
+  /// In zh, this message translates to:
+  /// **'去登录'**
+  String get sessionGoToLogin;
+
+  /// No description provided for @netConnectionFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'网络连接失败，请检查网络后重试'**
+  String get netConnectionFailed;
+
+  /// No description provided for @netLoginExpired.
+  ///
+  /// In zh, this message translates to:
+  /// **'登录已过期，请重新登录'**
+  String get netLoginExpired;
+
+  /// No description provided for @netCurrentPlatform.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前平台'**
+  String get netCurrentPlatform;
+
+  /// No description provided for @netSongNotAvailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'该歌曲在{platform}不可用'**
+  String netSongNotAvailable(String platform);
+
+  /// No description provided for @netQualityNotAvailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'所选音质不可用'**
+  String get netQualityNotAvailable;
+
+  /// No description provided for @netQualityDowngraded.
+  ///
+  /// In zh, this message translates to:
+  /// **'所选音质不可用，已降级到{quality}'**
+  String netQualityDowngraded(String quality);
+
+  /// No description provided for @netLyricsNotFound.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无歌词'**
+  String get netLyricsNotFound;
+
+  /// No description provided for @netNoVip.
+  ///
+  /// In zh, this message translates to:
+  /// **'需要开通{platform}会员'**
+  String netNoVip(String platform);
+
+  /// No description provided for @netStoragePermissionDenied.
+  ///
+  /// In zh, this message translates to:
+  /// **'存储权限被拒绝，请在设置中授权'**
+  String get netStoragePermissionDenied;
+
+  /// No description provided for @netNotFound.
+  ///
+  /// In zh, this message translates to:
+  /// **'内容不存在或已被删除'**
+  String get netNotFound;
+
+  /// No description provided for @netUnsupported.
+  ///
+  /// In zh, this message translates to:
+  /// **'{platform}暂不支持该功能'**
+  String netUnsupported(String platform);
+
+  /// No description provided for @netStorageFull.
+  ///
+  /// In zh, this message translates to:
+  /// **'存储空间不足'**
+  String get netStorageFull;
+
+  /// No description provided for @netRequestCancelled.
+  ///
+  /// In zh, this message translates to:
+  /// **'请求已取消'**
+  String get netRequestCancelled;
+
+  /// No description provided for @netRequestTimeout.
+  ///
+  /// In zh, this message translates to:
+  /// **'{platform}请求超时'**
+  String netRequestTimeout(String platform);
+
+  /// No description provided for @netServerError.
+  ///
+  /// In zh, this message translates to:
+  /// **'{platform}服务器异常'**
+  String netServerError(String platform);
+
+  /// No description provided for @netRequestFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'请求失败'**
+  String get netRequestFailed;
+
+  /// No description provided for @netRequestFailedWithCode.
+  ///
+  /// In zh, this message translates to:
+  /// **'请求失败 ({code})'**
+  String netRequestFailedWithCode(int code);
+
+  /// No description provided for @netUnknownPlatform.
+  ///
+  /// In zh, this message translates to:
+  /// **'未知平台'**
+  String get netUnknownPlatform;
+
+  /// No description provided for @commonLoadFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'加载失败'**
+  String get commonLoadFailed;
+
+  /// No description provided for @commonConfirm.
+  ///
+  /// In zh, this message translates to:
+  /// **'确定'**
+  String get commonConfirm;
+
+  /// No description provided for @commonAllPlatforms.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部平台'**
+  String get commonAllPlatforms;
+
+  /// No description provided for @commonPlaylist.
+  ///
+  /// In zh, this message translates to:
+  /// **'歌单'**
+  String get commonPlaylist;
+
+  /// No description provided for @commonNow.
+  ///
+  /// In zh, this message translates to:
+  /// **'刚刚'**
+  String get commonNow;
+
+  /// No description provided for @commonToday.
+  ///
+  /// In zh, this message translates to:
+  /// **'今天'**
+  String get commonToday;
+
+  /// No description provided for @commonYesterday.
+  ///
+  /// In zh, this message translates to:
+  /// **'昨天'**
+  String get commonYesterday;
+
+  /// No description provided for @commonDaysAgo.
+  ///
+  /// In zh, this message translates to:
+  /// **'{count}天前'**
+  String commonDaysAgo(int count);
+
+  /// No description provided for @commonHoursAgo.
+  ///
+  /// In zh, this message translates to:
+  /// **'{count}小时前'**
+  String commonHoursAgo(int count);
+
+  /// No description provided for @commonMinutesAgo.
+  ///
+  /// In zh, this message translates to:
+  /// **'{count}分钟前'**
+  String commonMinutesAgo(int count);
+
+  /// No description provided for @commonMonthDayPattern.
+  ///
+  /// In zh, this message translates to:
+  /// **'MM月dd日'**
+  String get commonMonthDayPattern;
+
+  /// No description provided for @libraryLikes.
+  ///
+  /// In zh, this message translates to:
+  /// **'我喜欢的音乐'**
+  String get libraryLikes;
+
+  /// No description provided for @libraryLikesWithCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'我喜欢 ({count})'**
+  String libraryLikesWithCount(int count);
+
+  /// No description provided for @libraryLikesFilter.
+  ///
+  /// In zh, this message translates to:
+  /// **'平台筛选'**
+  String get libraryLikesFilter;
+
+  /// No description provided for @libraryLikesEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'还没有喜欢的歌曲'**
+  String get libraryLikesEmpty;
+
+  /// No description provided for @libraryLikesEmptyHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'在播放器中点击爱心添加'**
+  String get libraryLikesEmptyHint;
+
+  /// No description provided for @libraryLikesEmptyForPlatform.
+  ///
+  /// In zh, this message translates to:
+  /// **'该平台没有喜欢的歌曲'**
+  String get libraryLikesEmptyForPlatform;
+
+  /// No description provided for @libraryHistory.
+  ///
+  /// In zh, this message translates to:
+  /// **'听歌历史'**
+  String get libraryHistory;
+
+  /// No description provided for @libraryHistoryWithCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'听歌历史 ({count})'**
+  String libraryHistoryWithCount(int count);
+
+  /// No description provided for @libraryHistoryClear.
+  ///
+  /// In zh, this message translates to:
+  /// **'清空历史'**
+  String get libraryHistoryClear;
+
+  /// No description provided for @libraryHistoryClearConfirm.
+  ///
+  /// In zh, this message translates to:
+  /// **'清空听歌历史'**
+  String get libraryHistoryClearConfirm;
+
+  /// No description provided for @libraryHistoryClearConfirmBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'确定要清空所有听歌历史吗？'**
+  String get libraryHistoryClearConfirmBody;
+
+  /// No description provided for @libraryHistoryEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'还没有听歌记录'**
+  String get libraryHistoryEmpty;
+
+  /// No description provided for @libraryImportPlaylist.
+  ///
+  /// In zh, this message translates to:
+  /// **'导入歌单'**
+  String get libraryImportPlaylist;
+
+  /// No description provided for @statsTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'听歌统计'**
+  String get statsTitle;
+
+  /// No description provided for @cacheTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'离线缓存'**
+  String get cacheTitle;
+
+  /// No description provided for @smartPlaylistTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'智能歌单'**
+  String get smartPlaylistTitle;
+
+  /// No description provided for @downloadTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'下载管理'**
+  String get downloadTitle;
+
+  /// No description provided for @downloadButtonTooltip.
+  ///
+  /// In zh, this message translates to:
+  /// **'下载（长按加入离线缓存）'**
+  String get downloadButtonTooltip;
+
+  /// No description provided for @cacheQueuedOfflineMode.
+  ///
+  /// In zh, this message translates to:
+  /// **'离线模式已开启，已加入缓存队列但不会自动开始'**
+  String get cacheQueuedOfflineMode;
+
+  /// No description provided for @cacheQueuedWifi.
+  ///
+  /// In zh, this message translates to:
+  /// **'已加入离线缓存队列，将在连接 Wi-Fi 后开始'**
+  String get cacheQueuedWifi;
+
+  /// No description provided for @cacheQueuedPaused.
+  ///
+  /// In zh, this message translates to:
+  /// **'已加入离线缓存队列，队列当前已暂停'**
+  String get cacheQueuedPaused;
+
+  /// No description provided for @cacheAdded.
+  ///
+  /// In zh, this message translates to:
+  /// **'已加入离线缓存：{name}'**
+  String cacheAdded(String name);
+
+  /// No description provided for @cacheAlreadyQueued.
+  ///
+  /// In zh, this message translates to:
+  /// **'该歌曲已在缓存列表中'**
+  String get cacheAlreadyQueued;
+
+  /// No description provided for @downloadQualityPicker.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择下载音质 - {name}'**
+  String downloadQualityPicker(String name);
+
+  /// No description provided for @downloadRequiresSvip.
+  ///
+  /// In zh, this message translates to:
+  /// **'需 SVIP'**
+  String get downloadRequiresSvip;
+
+  /// No description provided for @downloadRequiresVip.
+  ///
+  /// In zh, this message translates to:
+  /// **'需 VIP'**
+  String get downloadRequiresVip;
+
+  /// No description provided for @downloadLosslessFormat.
+  ///
+  /// In zh, this message translates to:
+  /// **'{format} · 无损音质'**
+  String downloadLosslessFormat(String format);
+
+  /// No description provided for @downloadNeedsSvip.
+  ///
+  /// In zh, this message translates to:
+  /// **'需要超级会员才能下载{quality}音质'**
+  String downloadNeedsSvip(String quality);
+
+  /// No description provided for @downloadNeedsVip.
+  ///
+  /// In zh, this message translates to:
+  /// **'需要VIP才能下载{quality}音质'**
+  String downloadNeedsVip(String quality);
+
+  /// No description provided for @downloadStarted.
+  ///
+  /// In zh, this message translates to:
+  /// **'已开始下载: {name} ({quality})'**
+  String downloadStarted(String name, String quality);
+
+  /// No description provided for @libraryRefreshCurrentPlaylist.
+  ///
+  /// In zh, this message translates to:
+  /// **'刷新当前歌单'**
+  String get libraryRefreshCurrentPlaylist;
+
+  /// No description provided for @libraryNewPlaylist.
+  ///
+  /// In zh, this message translates to:
+  /// **'新建歌单'**
+  String get libraryNewPlaylist;
+
+  /// No description provided for @libraryMyPlaylists.
+  ///
+  /// In zh, this message translates to:
+  /// **'我的歌单'**
+  String get libraryMyPlaylists;
+
+  /// No description provided for @libraryPlaylistName.
+  ///
+  /// In zh, this message translates to:
+  /// **'歌单名称'**
+  String get libraryPlaylistName;
+
+  /// No description provided for @libraryCreate.
+  ///
+  /// In zh, this message translates to:
+  /// **'新建'**
+  String get libraryCreate;
+
+  /// No description provided for @libraryCreatePlaylistFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'新建歌单失败'**
+  String get libraryCreatePlaylistFailed;
+
+  /// No description provided for @libraryPlaylistCreated.
+  ///
+  /// In zh, this message translates to:
+  /// **'已新建歌单'**
+  String get libraryPlaylistCreated;
+
+  /// No description provided for @libraryDeletePlaylist.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除歌单'**
+  String get libraryDeletePlaylist;
+
+  /// No description provided for @libraryDeletePlaylistConfirm.
+  ///
+  /// In zh, this message translates to:
+  /// **'确定要删除“{name}”吗？'**
+  String libraryDeletePlaylistConfirm(String name);
+
+  /// No description provided for @libraryPlaylistDeleted.
+  ///
+  /// In zh, this message translates to:
+  /// **'已删除歌单'**
+  String get libraryPlaylistDeleted;
+
+  /// No description provided for @libraryDeletePlaylistFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除歌单失败'**
+  String get libraryDeletePlaylistFailed;
+
+  /// No description provided for @commonDelete.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除'**
+  String get commonDelete;
+
+  /// No description provided for @libraryPlaylistLoadFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'加载歌单失败'**
+  String get libraryPlaylistLoadFailed;
+
+  /// No description provided for @libraryPlaylistsEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无歌单，或当前平台未登录'**
+  String get libraryPlaylistsEmpty;
+
+  /// No description provided for @libraryMyPlaylistsEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无我的歌单，可点击右上角新建或从分享链接导入'**
+  String get libraryMyPlaylistsEmpty;
+
+  /// No description provided for @librarySongCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'{count} 首'**
+  String librarySongCount(int count);
+
+  /// No description provided for @libraryPlaylistActions.
+  ///
+  /// In zh, this message translates to:
+  /// **'歌单操作'**
+  String get libraryPlaylistActions;
+
+  /// No description provided for @libraryExportPlaylist.
+  ///
+  /// In zh, this message translates to:
+  /// **'导出歌单'**
+  String get libraryExportPlaylist;
+
+  /// No description provided for @libraryShareFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'分享失败：{error}'**
+  String libraryShareFailed(String error);
+
+  /// No description provided for @libraryPlaylistMissingId.
+  ///
+  /// In zh, this message translates to:
+  /// **'该歌单缺少可访问ID，请刷新后重试'**
+  String get libraryPlaylistMissingId;
+
+  /// No description provided for @libraryExportPlaylistNamed.
+  ///
+  /// In zh, this message translates to:
+  /// **'导出「{name}」'**
+  String libraryExportPlaylistNamed(String name);
+
+  /// No description provided for @libraryExportFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'导出失败'**
+  String get libraryExportFailed;
+
+  /// No description provided for @libraryScanImportNamed.
+  ///
+  /// In zh, this message translates to:
+  /// **'扫码导入「{name}」'**
+  String libraryScanImportNamed(String name);
+
+  /// No description provided for @libraryQrTooLong.
+  ///
+  /// In zh, this message translates to:
+  /// **'这个歌单太长，链接放不进二维码，请改用「分享链接」'**
+  String get libraryQrTooLong;
+
+  /// No description provided for @libraryRemoveUnsupported.
+  ///
+  /// In zh, this message translates to:
+  /// **'该平台无法从歌单移除歌曲（暂不支持）'**
+  String get libraryRemoveUnsupported;
+
+  /// No description provided for @libraryPlatformUnsupported.
+  ///
+  /// In zh, this message translates to:
+  /// **'该平台暂不支持此操作'**
+  String get libraryPlatformUnsupported;
+
+  /// No description provided for @libraryPlaylistRenamed.
+  ///
+  /// In zh, this message translates to:
+  /// **'歌单已重命名'**
+  String get libraryPlaylistRenamed;
+
+  /// No description provided for @librarySelectNone.
+  ///
+  /// In zh, this message translates to:
+  /// **'全不选'**
+  String get librarySelectNone;
+
+  /// No description provided for @libraryPlaylistCopyFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'复制歌单失败'**
+  String get libraryPlaylistCopyFailed;
+
+  /// No description provided for @libraryCopyToLocal.
+  ///
+  /// In zh, this message translates to:
+  /// **'复制到我的歌单（本地）'**
+  String get libraryCopyToLocal;
+
+  /// No description provided for @libraryPlaylistCopiedLocal.
+  ///
+  /// In zh, this message translates to:
+  /// **'已复制为「{name}」'**
+  String libraryPlaylistCopiedLocal(String name);
+
+  /// No description provided for @libraryRenamePlaylist.
+  ///
+  /// In zh, this message translates to:
+  /// **'重命名歌单'**
+  String get libraryRenamePlaylist;
+
+  /// No description provided for @libraryPlaylistRenameError.
+  ///
+  /// In zh, this message translates to:
+  /// **'重命名歌单失败：{error}'**
+  String libraryPlaylistRenameError(String error);
+
+  /// No description provided for @libraryPlaylistDuplicateFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'复制失败：歌单不存在'**
+  String get libraryPlaylistDuplicateFailed;
+
+  /// No description provided for @libraryPlaylistCopyOf.
+  ///
+  /// In zh, this message translates to:
+  /// **'{name} 副本'**
+  String libraryPlaylistCopyOf(String name);
+
+  /// No description provided for @libraryPlaylistCopy.
+  ///
+  /// In zh, this message translates to:
+  /// **'副本'**
+  String get libraryPlaylistCopy;
+
+  /// No description provided for @libraryPlaylistCopyError.
+  ///
+  /// In zh, this message translates to:
+  /// **'复制歌单失败：{error}'**
+  String libraryPlaylistCopyError(String error);
+
+  /// No description provided for @libraryPlaylistRenameFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'重命名失败（名称为空或歌单不存在）'**
+  String get libraryPlaylistRenameFailed;
+
+  /// No description provided for @librarySelectAll.
+  ///
+  /// In zh, this message translates to:
+  /// **'全选'**
+  String get librarySelectAll;
+
+  /// No description provided for @libraryPlaylistCopyEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'该歌单没有可复制的歌曲'**
+  String get libraryPlaylistCopyEmpty;
+
+  /// No description provided for @sfosSelectFolder.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择文件夹'**
+  String get sfosSelectFolder;
+
+  /// No description provided for @sfosSelectFile.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择文件'**
+  String get sfosSelectFile;
+
+  /// No description provided for @sfosPickerNotReady.
+  ///
+  /// In zh, this message translates to:
+  /// **'文件选择器尚未就绪'**
+  String get sfosPickerNotReady;
+
+  /// No description provided for @sfosUseFolder.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择此文件夹'**
+  String get sfosUseFolder;
+
+  /// No description provided for @sfosNoFiles.
+  ///
+  /// In zh, this message translates to:
+  /// **'没有可选文件'**
+  String get sfosNoFiles;
+
+  /// No description provided for @sfosShareNotReady.
+  ///
+  /// In zh, this message translates to:
+  /// **'分享界面尚未就绪'**
+  String get sfosShareNotReady;
+
+  /// No description provided for @sfosShareExport.
+  ///
+  /// In zh, this message translates to:
+  /// **'分享 / 导出'**
+  String get sfosShareExport;
+
+  /// No description provided for @sfosCopy.
+  ///
+  /// In zh, this message translates to:
+  /// **'复制'**
+  String get sfosCopy;
+
+  /// No description provided for @sfosOpenFile.
+  ///
+  /// In zh, this message translates to:
+  /// **'打开文件'**
+  String get sfosOpenFile;
+
+  /// No description provided for @sfosClose.
+  ///
+  /// In zh, this message translates to:
+  /// **'关闭'**
+  String get sfosClose;
+
+  /// No description provided for @sfosCannotOpenFile.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法打开文件'**
+  String get sfosCannotOpenFile;
+
+  /// No description provided for @sfosCannotOpenFolder.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法打开文件夹'**
+  String get sfosCannotOpenFolder;
+
+  /// No description provided for @sfosPlaybinUnavailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'GStreamer playbin 不可用'**
+  String get sfosPlaybinUnavailable;
+
+  /// No description provided for @sfosPlayerClosed.
+  ///
+  /// In zh, this message translates to:
+  /// **'播放器已关闭'**
+  String get sfosPlayerClosed;
+
+  /// No description provided for @sfosTrackStillLoading.
+  ///
+  /// In zh, this message translates to:
+  /// **'上一首歌曲仍在加载'**
+  String get sfosTrackStillLoading;
+
+  /// No description provided for @sfosCannotOpenAudio.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法打开音频'**
+  String get sfosCannotOpenAudio;
+
+  /// No description provided for @sfosCannotChangeState.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法切换播放状态'**
+  String get sfosCannotChangeState;
+
+  /// No description provided for @sfosLoadingCancelled.
+  ///
+  /// In zh, this message translates to:
+  /// **'加载已取消'**
+  String get sfosLoadingCancelled;
+
+  /// No description provided for @sfosCannotSeek.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法定位播放位置'**
+  String get sfosCannotSeek;
+
+  /// No description provided for @sfosRateUnavailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前音频不支持变速'**
+  String get sfosRateUnavailable;
+
+  /// No description provided for @sfosEqualizerUnavailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'未安装 GStreamer 均衡器插件'**
+  String get sfosEqualizerUnavailable;
+
+  /// No description provided for @sfosReadDirectoryError.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法读取目录：{error}'**
+  String sfosReadDirectoryError(String error);
+
+  /// No description provided for @sfosOpenFileError.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法打开文件：{error}'**
+  String sfosOpenFileError(String error);
+}
+
+class _AppLocalizationsDelegate
+    extends LocalizationsDelegate<AppLocalizations> {
+  const _AppLocalizationsDelegate();
+
+  @override
+  Future<AppLocalizations> load(Locale locale) {
+    return SynchronousFuture<AppLocalizations>(lookupAppLocalizations(locale));
+  }
+
+  @override
+  bool isSupported(Locale locale) =>
+      <String>['en', 'zh'].contains(locale.languageCode);
+
+  @override
+  bool shouldReload(_AppLocalizationsDelegate old) => false;
+}
+
+AppLocalizations lookupAppLocalizations(Locale locale) {
+  // Lookup logic when only language code is specified.
+  switch (locale.languageCode) {
+    case 'en':
+      return AppLocalizationsEn();
+    case 'zh':
+      return AppLocalizationsZh();
+  }
+
+  throw FlutterError(
+    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+    'an issue with the localizations generation tool. Please file an issue '
+    'on GitHub with a reproducible sample app and the gen-l10n configuration '
+    'that was used.',
+  );
+}

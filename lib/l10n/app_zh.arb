@@ -1,0 +1,508 @@
+{
+  "@@locale": "zh",
+  "appTitle": "Mconnect",
+  "navSearch": "搜索",
+  "navDiscover": "发现",
+  "navLibrary": "音乐库",
+  "navDownloads": "下载",
+  "settingsTitle": "设置",
+  "settingsAccounts": "账号管理",
+  "settingsAccountsSubtitle": "网易云音乐、QQ 音乐、酷狗音乐、哔哩哔哩登录状态",
+  "settingsAppearance": "外观",
+  "settingsAppearanceSubtitle": "主题模式、主题色与自定义背景",
+  "settingsFloatingLyrics": "悬浮歌词",
+  "settingsFloatingLyricsSubtitle": "桌面歌词开关、颜色、字号与阴影",
+  "settingsAudio": "音频增强",
+  "settingsAudioSubtitle": "淡入淡出、均衡器与睡眠定时",
+  "settingsDiagnostics": "诊断与关于",
+  "settingsDiagnosticsSubtitle": "日志位置与应用版本",
+  "settingsBackup": "备份与恢复",
+  "settingsBackupSubtitle": "导出/导入收藏、歌单、统计与设置",
+  "settingsExportDiagnostics": "导出诊断日志",
+  "settingsExportDiagnosticsSubtitle": "打包最近事件与日志并分享（已脱敏）",
+  "settingsAccountsTitle": "账号管理",
+  "settingsAppearanceTitle": "外观",
+  "settingsFloatingLyricsTitle": "悬浮歌词",
+  "settingsAudioTitle": "音频增强",
+  "settingsDiagnosticsTitle": "诊断与关于",
+  "themeFollowSystem": "跟随系统",
+  "themeLight": "浅色模式",
+  "themeDark": "深色模式",
+  "themeColor": "主题色",
+  "themeColorSubtitle": "影响按钮、进度条、导航栏和高亮状态",
+  "uiStyle": "UI 风格",
+  "uiStyleMaterial": "Material 风格",
+  "uiStyleMiuix": "Miuix 风格",
+  "backgroundRemoved": "已移除自定义背景",
+  "backgroundApplied": "已应用自定义背景",
+  "backgroundUpdated": "已更新自定义背景",
+  "backgroundImageUnreadable": "无法读取所选图片",
+  "backgroundImageSizeUnreadable": "无法读取图片尺寸",
+  "backgroundFileMissing": "背景图片文件不存在，请重新选择",
+  "backgroundProcessFailed": "背景图片处理失败：{error}",
+  "@backgroundProcessFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "customBackground": "自定义背景",
+  "customBackgroundEnabledHint": "已启用，点击重新调整背景位置",
+  "customBackgroundChooseHint": "选择图片作为全应用背景",
+  "removeBackground": "移除背景",
+  "adjustBackground": "调整背景",
+  "backgroundEditorHint": "拖动图片调整位置，双指缩放到合适大小",
+  "floatingLyricsEnable": "桌面悬浮歌词",
+  "floatingLyricsEnableSubtitle": "在桌面顶部显示歌词，支持拖拽、缩放和锁定",
+  "floatingLyricsPermissionSubtitle": "显示在其他应用上方，需要系统悬浮窗权限",
+  "floatingLyricsLock": "锁定位置",
+  "floatingLyricsLockSubtitle": "锁定后悬浮歌词不可移动、不可点击，触摸会直接落到下面的应用；关闭悬浮歌词会自动解锁",
+  "floatingLyricsTextColor": "歌词底色",
+  "floatingLyricsTextColorSubtitle": "未播放部分的文字颜色，默认白色",
+  "floatingLyricsHighlightColor": "已播放高亮色",
+  "floatingLyricsHighlightColorSubtitle": "唱到的部分变为该颜色，悬浮窗里的圆点也调它",
+  "floatingLyricsFontSize": "字号",
+  "floatingLyricsStrokeWidth": "描边强度",
+  "floatingLyricsShadowOpacity": "阴影强度",
+  "customColor": "自定义颜色",
+  "defaultLabel": "默认",
+  "audioFade": "淡入淡出",
+  "audioFadeSubtitle": "播放、暂停时平滑调整音量，默认关闭",
+  "audioFadeDuration": "淡入淡出时长",
+  "audioEqualizer": "均衡器",
+  "audioEqualizerSubtitle": "调整播放音频的频段增益，设备不支持时会自动忽略",
+  "audioEqualizerPreset": "均衡器预设",
+  "audioBandLow": "低频",
+  "audioBandLowMid": "中低频",
+  "audioBandMid": "中频",
+  "audioBandHighMid": "中高频",
+  "audioBandHigh": "高频",
+  "audioSleepTimer": "睡眠定时",
+  "audioSleepTimerRemaining": "剩余 {time}",
+  "@audioSleepTimerRemaining": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "audioSleepTimerCountdown": "{minutes} 分钟后暂停播放",
+  "@audioSleepTimerCountdown": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "audioSleepTimerDuration": "定时时长",
+  "audioMinutes": "{minutes} 分钟",
+  "@audioMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "diagnosticsSection": "诊断",
+  "aboutSection": "关于",
+  "version": "版本",
+  "diagnosticsLog": "诊断日志",
+  "diagnosticsLogPathCopied": "日志路径已复制",
+  "diagnosticsLogCleared": "诊断日志已清空",
+  "copyPath": "复制路径",
+  "clearLog": "清空日志",
+  "diagnosticsExporting": "正在导出诊断日志…",
+  "diagnosticsExported": "诊断日志已导出",
+  "diagnosticsExportPathCopied": "诊断日志已导出，文件路径已复制到剪贴板",
+  "diagnosticsExportFailed": "导出失败：{error}",
+  "@diagnosticsExportFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "share": "分享",
+  "accountLoggedIn": "已登录",
+  "accountTapToLogin": "点击登录",
+  "accountLogout": "退出登录",
+  "accountLogoutConfirm": "确定要退出 {platform} 账号吗？",
+  "@accountLogoutConfirm": {
+    "placeholders": {
+      "platform": {
+        "type": "String"
+      }
+    }
+  },
+  "actionSave": "保存",
+  "actionCancel": "取消",
+  "actionReset": "重置",
+  "actionLogout": "退出",
+  "commonRetry": "重试",
+  "commonPlayNext": "下一首播放",
+  "commonAddToPlaylist": "添加到歌单",
+  "commonDownload": "下载",
+  "commonDownloaded": "已下载",
+  "commonLike": "喜欢",
+  "commonUnlike": "取消喜欢",
+  "commonCopyLink": "复制链接",
+  "playerNowPlaying": "正在播放",
+  "playerNotPlaying": "未在播放",
+  "playerAddedToLikes": "已收藏到我喜欢",
+  "playerRemovedFromLikes": "已取消收藏",
+  "playerAddedToQueue": "已添加到播放队列",
+  "playerSongInfoCopied": "歌曲信息已复制",
+  "playerPlaybackSettings": "播放设置",
+  "playerAddToPlatformPlaylist": "添加到平台歌单",
+  "playerAddToQueue": "加入播放队列",
+  "playerCopySongInfo": "复制歌曲信息",
+  "playerAddedToPlaylist": "已添加到歌单",
+  "playerAddToPlaylistFailed": "添加失败，当前平台可能暂不支持编辑该歌单",
+  "playerPlay": "播放",
+  "playerPause": "暂停",
+  "playerPrevious": "上一首",
+  "playerNext": "下一首",
+  "playerShuffle": "随机播放",
+  "playerRepeat": "循环模式",
+  "playerToggleLyrics": "显示歌词",
+  "playerToggleArtwork": "显示封面",
+  "playerLike": "我喜欢",
+  "playerCollapse": "收起",
+  "moreActions": "更多操作",
+  "platformLocal": "本地音乐",
+  "platformNetease": "网易云音乐",
+  "platformQq": "QQ 音乐",
+  "platformKugou": "酷狗音乐",
+  "platformBilibili": "哔哩哔哩音乐",
+  "sessionExpired": "登录已过期，请重新登录",
+  "sessionGoToLogin": "去登录",
+  "netConnectionFailed": "网络连接失败，请检查网络后重试",
+  "netLoginExpired": "登录已过期，请重新登录",
+  "netCurrentPlatform": "当前平台",
+  "netSongNotAvailable": "该歌曲在{platform}不可用",
+  "@netSongNotAvailable": {
+    "placeholders": {
+      "platform": {
+        "type": "String"
+      }
+    }
+  },
+  "netQualityNotAvailable": "所选音质不可用",
+  "netQualityDowngraded": "所选音质不可用，已降级到{quality}",
+  "@netQualityDowngraded": {
+    "placeholders": {
+      "quality": {
+        "type": "String"
+      }
+    }
+  },
+  "netLyricsNotFound": "暂无歌词",
+  "netNoVip": "需要开通{platform}会员",
+  "@netNoVip": {
+    "placeholders": {
+      "platform": {
+        "type": "String"
+      }
+    }
+  },
+  "netStoragePermissionDenied": "存储权限被拒绝，请在设置中授权",
+  "netNotFound": "内容不存在或已被删除",
+  "netUnsupported": "{platform}暂不支持该功能",
+  "@netUnsupported": {
+    "placeholders": {
+      "platform": {
+        "type": "String"
+      }
+    }
+  },
+  "netStorageFull": "存储空间不足",
+  "netRequestCancelled": "请求已取消",
+  "netRequestTimeout": "{platform}请求超时",
+  "@netRequestTimeout": {
+    "placeholders": {
+      "platform": {
+        "type": "String"
+      }
+    }
+  },
+  "netServerError": "{platform}服务器异常",
+  "@netServerError": {
+    "placeholders": {
+      "platform": {
+        "type": "String"
+      }
+    }
+  },
+  "netRequestFailed": "请求失败",
+  "netRequestFailedWithCode": "请求失败 ({code})",
+  "@netRequestFailedWithCode": {
+    "placeholders": {
+      "code": {
+        "type": "int"
+      }
+    }
+  },
+  "netUnknownPlatform": "未知平台",
+  "commonLoadFailed": "加载失败",
+  "commonConfirm": "确定",
+  "commonAllPlatforms": "全部平台",
+  "commonPlaylist": "歌单",
+  "commonNow": "刚刚",
+  "commonToday": "今天",
+  "commonYesterday": "昨天",
+  "commonDaysAgo": "{count}天前",
+  "@commonDaysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "commonHoursAgo": "{count}小时前",
+  "@commonHoursAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "commonMinutesAgo": "{count}分钟前",
+  "@commonMinutesAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "commonMonthDayPattern": "MM月dd日",
+  "libraryLikes": "我喜欢的音乐",
+  "libraryLikesWithCount": "我喜欢 ({count})",
+  "@libraryLikesWithCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryLikesFilter": "平台筛选",
+  "libraryLikesEmpty": "还没有喜欢的歌曲",
+  "libraryLikesEmptyHint": "在播放器中点击爱心添加",
+  "libraryLikesEmptyForPlatform": "该平台没有喜欢的歌曲",
+  "libraryHistory": "听歌历史",
+  "libraryHistoryWithCount": "听歌历史 ({count})",
+  "@libraryHistoryWithCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryHistoryClear": "清空历史",
+  "libraryHistoryClearConfirm": "清空听歌历史",
+  "libraryHistoryClearConfirmBody": "确定要清空所有听歌历史吗？",
+  "libraryHistoryEmpty": "还没有听歌记录",
+  "libraryImportPlaylist": "导入歌单",
+  "statsTitle": "听歌统计",
+  "cacheTitle": "离线缓存",
+  "smartPlaylistTitle": "智能歌单",
+  "downloadTitle": "下载管理",
+  "downloadButtonTooltip": "下载（长按加入离线缓存）",
+  "cacheQueuedOfflineMode": "离线模式已开启，已加入缓存队列但不会自动开始",
+  "cacheQueuedWifi": "已加入离线缓存队列，将在连接 Wi-Fi 后开始",
+  "cacheQueuedPaused": "已加入离线缓存队列，队列当前已暂停",
+  "cacheAdded": "已加入离线缓存：{name}",
+  "@cacheAdded": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cacheAlreadyQueued": "该歌曲已在缓存列表中",
+  "downloadQualityPicker": "选择下载音质 - {name}",
+  "@downloadQualityPicker": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadRequiresSvip": "需 SVIP",
+  "downloadRequiresVip": "需 VIP",
+  "downloadLosslessFormat": "{format} · 无损音质",
+  "@downloadLosslessFormat": {
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadNeedsSvip": "需要超级会员才能下载{quality}音质",
+  "@downloadNeedsSvip": {
+    "placeholders": {
+      "quality": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadNeedsVip": "需要VIP才能下载{quality}音质",
+  "@downloadNeedsVip": {
+    "placeholders": {
+      "quality": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadStarted": "已开始下载: {name} ({quality})",
+  "@downloadStarted": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "quality": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryRefreshCurrentPlaylist": "刷新当前歌单",
+  "libraryNewPlaylist": "新建歌单",
+  "libraryMyPlaylists": "我的歌单",
+  "libraryPlaylistName": "歌单名称",
+  "libraryCreate": "新建",
+  "libraryCreatePlaylistFailed": "新建歌单失败",
+  "libraryPlaylistCreated": "已新建歌单",
+  "libraryDeletePlaylist": "删除歌单",
+  "libraryDeletePlaylistConfirm": "确定要删除“{name}”吗？",
+  "@libraryDeletePlaylistConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryPlaylistDeleted": "已删除歌单",
+  "libraryDeletePlaylistFailed": "删除歌单失败",
+  "commonDelete": "删除",
+  "libraryPlaylistLoadFailed": "加载歌单失败",
+  "libraryPlaylistsEmpty": "暂无歌单，或当前平台未登录",
+  "libraryMyPlaylistsEmpty": "暂无我的歌单，可点击右上角新建或从分享链接导入",
+  "librarySongCount": "{count} 首",
+  "@librarySongCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryPlaylistActions": "歌单操作",
+  "libraryExportPlaylist": "导出歌单",
+  "libraryShareFailed": "分享失败：{error}",
+  "@libraryShareFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryPlaylistMissingId": "该歌单缺少可访问ID，请刷新后重试",
+  "libraryExportPlaylistNamed": "导出「{name}」",
+  "@libraryExportPlaylistNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryExportFailed": "导出失败",
+  "libraryScanImportNamed": "扫码导入「{name}」",
+  "@libraryScanImportNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryQrTooLong": "这个歌单太长，链接放不进二维码，请改用「分享链接」",
+  "libraryRemoveUnsupported": "该平台无法从歌单移除歌曲（暂不支持）",
+  "libraryPlatformUnsupported": "该平台暂不支持此操作",
+  "libraryPlaylistRenamed": "歌单已重命名",
+  "librarySelectNone": "全不选",
+  "libraryPlaylistCopyFailed": "复制歌单失败",
+  "libraryCopyToLocal": "复制到我的歌单（本地）",
+  "libraryPlaylistCopiedLocal": "已复制为「{name}」",
+  "@libraryPlaylistCopiedLocal": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryRenamePlaylist": "重命名歌单",
+  "libraryPlaylistRenameError": "重命名歌单失败：{error}",
+  "libraryPlaylistDuplicateFailed": "复制失败：歌单不存在",
+  "libraryPlaylistCopyOf": "{name} 副本",
+  "@libraryPlaylistCopyOf": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryPlaylistCopy": "副本",
+  "libraryPlaylistCopyError": "复制歌单失败：{error}",
+  "libraryPlaylistRenameFailed": "重命名失败（名称为空或歌单不存在）",
+  "@libraryPlaylistCopyError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@libraryPlaylistRenameError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "librarySelectAll": "全选",
+  "libraryPlaylistCopyEmpty": "该歌单没有可复制的歌曲",
+  "sfosSelectFolder": "选择文件夹",
+  "sfosSelectFile": "选择文件",
+  "sfosPickerNotReady": "文件选择器尚未就绪",
+  "sfosUseFolder": "选择此文件夹",
+  "sfosNoFiles": "没有可选文件",
+  "sfosShareNotReady": "分享界面尚未就绪",
+  "sfosShareExport": "分享 / 导出",
+  "sfosCopy": "复制",
+  "sfosOpenFile": "打开文件",
+  "sfosClose": "关闭",
+  "sfosCannotOpenFile": "无法打开文件",
+  "sfosCannotOpenFolder": "无法打开文件夹",
+  "sfosPlaybinUnavailable": "GStreamer playbin 不可用",
+  "sfosPlayerClosed": "播放器已关闭",
+  "sfosTrackStillLoading": "上一首歌曲仍在加载",
+  "sfosCannotOpenAudio": "无法打开音频",
+  "sfosCannotChangeState": "无法切换播放状态",
+  "sfosLoadingCancelled": "加载已取消",
+  "sfosCannotSeek": "无法定位播放位置",
+  "sfosRateUnavailable": "当前音频不支持变速",
+  "sfosEqualizerUnavailable": "未安装 GStreamer 均衡器插件",
+  "sfosReadDirectoryError": "无法读取目录：{error}",
+  "@sfosReadDirectoryError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "sfosOpenFileError": "无法打开文件：{error}",
+  "@sfosOpenFileError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  }
+}

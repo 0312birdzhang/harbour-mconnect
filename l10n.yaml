@@ -1,0 +1,32 @@
+# Flutter 官方本地化工具链配置（`flutter gen-l10n`）。
+#
+# 选择「生成物入库」而不是 synthetic package：本仓库的 CI / 出包流程里没有
+# 额外生成步骤（`pubspec.yaml` 的 `flutter.generate` 保持关闭），把
+# `app_localizations*.dart` 生成到 `lib/l10n/` 并随源码一起入库，任何一次
+# `flutter analyze` / `flutter test` / `flutter build` 都能直接编译，
+# 不依赖"先跑一遍 gen-l10n"这一隐式前置条件。
+#
+# 改文案的流程：编辑 `lib/l10n/app_zh.arb`（模板）与 `app_en.arb`，然后
+#   flutter gen-l10n
+# 重新生成。`test/l10n_test.dart` 会校验：两个 ARB 的键集合完全一致、每个 key 的
+# placeholder 集合一致、生成物没有落后于 ARB，以及 en 真的能渲染出英文；
+# 它还做两项"别让键躺着"的检查：孤儿键（ARB 有、代码没人引用，阈值 0）与
+# en 值含中文（假翻译，阈值 0）。
+# （这行注释原先写的是 `test/l10n_arb_test.dart` —— 那个文件从来不存在。）
+#
+# 「新增硬编码中文不得增长」的预算护栏在 `test/i18n_budget_test.dart`；
+# 口径与复现命令见 `docs/i18n-migration-plan.md` §0.2 / §6。
+#
+# ⚠️ 本轮 `MaterialApp.supportedLocales` **只声明 `zh`**（见 `lib/app.dart` 的
+# `appSupportedLocales`）。en 的 ARB 与生成物都是完整可用的（有测试证明切到
+# `Locale('en')` 会出英文），只是全仓还有约 900 处中文未迁移 —— **准确数字由
+# `test/i18n_budget_test.dart` 打印，不要手写在这里**（手写的那份必然会漂）。
+# 现在放开 en 会让英文设备看到"部分英文 + 其余中文"的混合界面。
+# 放开条件 = 剩余中文迁完，改动量 **1 行**
+# （把 `appSupportedLocales` 换成 `AppLocalizations.supportedLocales`）。
+arb-dir: lib/l10n
+template-arb-file: app_zh.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+output-dir: lib/l10n
+nullable-getter: true

@@ -1,0 +1,14 @@
+# Copy into elinux/ and adjust Name / Exec.
+
+[Desktop Entry]
+Type=Application
+Categories=AudioVideo;Audio;Music;Player;
+Name=Mconnect
+Comment=A Flutter app on Sailfish OS
+Icon=harbour-mconnect
+Exec=harbour-mconnect
+X-Nemo-Application-Type=generic
+X-Sailplay-BackgroundService=org.sailfishos.Mconnect
+
+[X-Sailjail]
+Sandboxing=Disabled
