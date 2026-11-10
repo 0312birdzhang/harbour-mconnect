@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/widgets/cached_artwork_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -654,7 +654,7 @@ class _PlaylistHeader extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: coverUrl != null && coverUrl!.isNotEmpty
-                ? CachedNetworkImage(
+                ? CachedArtworkImage(
                     imageUrl: coverUrl!,
                     width: 96,
                     height: 96,

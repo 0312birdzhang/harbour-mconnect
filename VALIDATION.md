@@ -45,7 +45,7 @@
 最终 RPM 已重新安装，以普通用户正常启动；`rpm -V harbour-mconnect` 无差异，
 MPRIS 状态为 `Paused`，截图显示播放记忆已恢复但没有自动播放。
 RPM SHA-256：`09c1c471c276ecea7bf4dae4637c05e056d75150ae0a5bdd3cde82fc2a2476a6`。
-真机截图：最终首屏（设备图片不公开）、搜索与输入法（设备图片不公开）。
+真机截图：[最终首屏](docs/device-final.png)、[搜索与输入法](docs/device-search.png)。
 
 后续还需验证：QQ/酷狗搜索与播放、各平台登录、同步歌词、锁屏长时间播放、
 来电抢占、蓝牙/耳机路由及下载后的离线播放。账号与会员限制按平台响应处理；
@@ -59,9 +59,9 @@ RPM SHA-256：`09c1c471c276ecea7bf4dae4637c05e056d75150ae0a5bdd3cde82fc2a2476a6`
 此前仅注册 Roboto，正文正常但 AppBar 等独立样式仍会缺字。
 此次未更改 Dart/AOT 和音频逻辑，重新生成字体清单并打包。
 
-真机截图确认：下载管理（设备图片不公开）、
-音乐库「我喜欢」（设备图片不公开）、
-发现「榜单中心」（设备图片不公开）标题中文正常。
+真机截图确认：[下载管理](docs/device-download-r2.png)、
+[音乐库「我喜欢」](docs/device-likes-r2.png)、
+[发现「榜单中心」](docs/device-toplist-r2.png)标题中文正常。
 最终 1.5.0-2 RPM 资源验证通过，已安装并重新启动；`rpm -V` 无差异，
 MPRIS 状态保持 `Paused`，全程未触发有声播放。
 
@@ -182,9 +182,344 @@ RPM 38 文件/3 ARM64 ELF/Qt 与 runtime 依赖校验通过。此次只重建原
 按用户要求停止自行截图，最终颜色/排版与实际触摸效果由用户反馈验收。
 SHA-256：38d87b409a83dfc2088b3e1f211450e86677159f1c1941367a1bccb15c6e08d8。
 
-## 1.5.0-11 至 1.5.0-13
+## 1.5.0-14 歌词字体与启动策略
 
-哔哩哔哩搜索、音频地址与 CDN 数据读取通过，66 项相关回归测试通过。
-1.5.0-13 已完成 ARM64 原生构建、RPM 内容校验、安装及启动检查。
-隔离 Wayland 协议测试验证主窗口与 cover 的可见性变化不请求退出，关闭事件请求结束宿主。
-连续启动三次复用同一进程；最终真实关闭/重开/切后台的视觉行为仍待用户反馈。
+歌词高亮的 DefaultTextStyle/AnimatedDefaultTextStyle 继承原有字体与回退，不再仅保留字号和字重。
+逐字颜色边界对齐完整 grapheme，避免拆开扩展汉字、组合字符和 emoji。标题与正文增加系统 Noto Emoji / DejaVu Symbols 回退。
+35 项歌词、进度及导航测试通过，额外标题回退测试通过；合计 36 项不同检查。静态分析无问题。
+设备字体路径完整；只读线程栈未发现死锁。观察到系统单实例 invoker 等待，而应用本身已有 flock/Show 单实例处理。
+Desktop Entry 设置 X-Nemo-Single-Instance=no，避免两套机制冲突；实际缺字及无响应的用户场景仍需设备反馈确认。
+
+最终 RPM 已通过 40 文件/3 ARM64 ELF、四个回退字体别名、系统字体依赖、LF 启动脚本及 X-Nemo-Single-Instance=no 校验。
+1.5.0-14 真机安装及 rpm -V 通过；普通前台启动成功，日志确认 playback core ready，未发起播放。
+歌词实际显示及再次点击图标时的用户场景仍待反馈，不将启动检查视为缺字或卡死的视觉验收。
+
+## 1.5.0-15 海报及歌词缓存
+
+新增私有 MCA 海报封装、完整性校验、同 URL 请求合并、旧缓存按需迁移、网络海报 LRU 清理；列表/播放器/迷你播放器共用缓存。
+本地音乐内嵌封面也保存为 MCA；系统 MPRIS/cover 通过回环解码端点读取，不落普通图片文件。
+歌词默认优先使用可解析缓存，按当前歌曲后台预取，并保存 LRCLIB 等备用来源及来源标签。
+134 项相关测试通过，静态分析 0 问题；全量 ARM64 AOT/原生构建、40 文件/3 ARM64 ELF 的 RPM 校验通过。
+真机安装 1.5.0-15、rpm -V 通过。检查得到 1 份 MCA 文件，摘要正确，新私有海报目录中普通图片数为 0；数据库有 7 条歌词记录。
+重启后日志确认 yrc 歌词缓存命中，没有再次调用歌词平台接口。未播放音乐，未截图；隔离测试验证新实例在离线条件下读取海报与歌词缓存。
+
+
+## 2026-10-31 — Silica migration milestone 1 (1.5.0-16)
+
+- Added an independent Sailfish Silica application window and native cover,
+  connected to the retained Dart/Riverpod core over a versioned session D-Bus API.
+- Native preview covers four-platform song search, result playback commands,
+  queue, current track/position, line lyrics with translations, mini player,
+  and cover controls. Native login/library/discovery/download/settings remain
+  later milestones; this is not feature parity.
+- Host: 20 bridge/adapter/MPRIS/artwork/lyrics tests passed. Targeted static
+  analysis and main entry analysis report zero issues.
+- Full ARM64 AOT and native CMake RPM build passed. Actual RPM verification:
+  50 payload files, 4 ARM64 ELF files, expected Qt/Silica/runtime dependencies,
+  LF launcher, no embedded Flutter engine.
+- Device: installed 1.5.0-16; rpm -V clean. Installed QML validation instantiated
+  all 6 components. No QML errors matched in the native process journal.
+- Read-only live searches: NetEase 30, Kugou 30, Bilibili 26; QQ 0. QQ's existing
+  adapter returns an empty list when its response has no song list; no native
+  QQ search success is claimed for this run.
+- With user approval to interrupt the observed playback, SIGTERM of the native
+  UI exited both UI and its owned core. Reopen restored 31 queued songs and 66
+  lyric lines, paused. A second launch exited successfully, raised the existing
+  instance and left playback paused. Final instance UI PID 19646 / core 19649.
+- No screenshots or automated audio playback were used. Layout appearance and
+  audible playback are subject to user-directed verification.
+
+
+## 2026-10-31 — Silica migration milestone 2 (1.5.0-17)
+
+- Native library entry, account management, four-platform QR login routing,
+  local and platform playlist pages, likes/history, paged song lists, play-all,
+  local playlist creation, and adding the current song to a local playlist.
+- Reuses AuthNotifier/session storage, MyPlaylistsRepository and existing
+  platform adapters. Native startup now wires session-expiry reporting.
+- QR attempts have bounded lifetime and generation/session guards. Closing a
+  page during QR acquisition invalidates its result; stale cancellation cannot
+  cancel a newer attempt. QR keys and cookies are not exposed to QML.
+- Host: 29 bridge/library/login/MPRIS/cache tests plus 3 targeted downloaded-file
+  playback regressions passed. Static analysis reports zero issues.
+- Complete Dart ARM64 AOT build passed. Native validation-harness/parent guards
+  were subsequently compiled incrementally with production CMake and repackaged
+  with that same AOT. Source/package verification: 56 files, 4 ARM64 ELF files,
+  expected runtime dependencies, no embedded Flutter engine, LF launcher.
+- Installed 1.5.0-17 and rpm -V clean. Installed native validation reports
+  SILICA_IMAGE_DATA_URL_PASS and SILICA_QML_VALIDATION_PASS components=12.
+  Dialog type is compiled; its instance requires the real page stack. Other
+  components instantiate in the harness. No QML errors matched in native UI
+  PID 20372's actual startup journal.
+- Device read-only data: 2 local playlists (first has 49 songs), 0 local likes,
+  85 history entries, 2 NetEase playlists (first has 49 songs), 7 Bilibili folders.
+  Bilibili first-folder 105 tracks returned in pages of 100 and 5.
+- Restored NetEase and Bilibili accounts. On the logged-out Kugou adapter,
+  QR acquisition/render returned a valid PNG and waiting status, exposed neither
+  key nor cookie, and cancel removed the attempt. No live account was logged out.
+- Final state paused with 31 queue entries and 66 lyric lines. No automated audio
+  playback or screenshots. Real QR scan/authorization, page appearance and user
+  interaction acceptance remain user-directed verification.
+- Final RPM SHA256:
+  929745591fd8784d59df6bfab6dce4ebcf5538311eed5b21d54a8019f8678914
+
+
+## 2026-10-31 — Native search input method (1.5.0-18)
+
+- Confirmed running 1.5.0-17 native UI lacked QT_IM_MODULE and did not map the
+  Maliit input-context plugin, although the session exports QT_IM_MODULE=Maliit.
+- Native entry now defaults QT_IM_MODULE to Maliit before QGuiApplication
+  creation, preserving an explicit supplied value. Search requests focus after
+  page activation and shows the input method when its field gains active focus.
+- Production CMake native rebuild and RPM verification passed. Reuses the
+  unchanged, previously validated Dart AOT core. Installed 1.5.0-18, rpm -V clean;
+  installed PNG/QML validation passed.
+- Actual replacement UI PID 20967 maps
+  /usr/lib64/qt5/plugins/platforminputcontexts/libmaliitplatforminputcontextplugin.so.
+  Startup restored paused state (31 queue entries, 66 lyric lines).
+- No screenshots or playback commands. Visible keyboard and typing acceptance
+  require the user's interaction with the search field.
+
+
+## 2026-10-31 — Silica migration milestone 3 (1.5.0-19)
+
+- Added native discovery (supported recommendations/charts/new songs), download
+  management and song download entry points, cache settings and shuffle/repeat.
+  Recommendation provenance and chart periods are retained. Existing notifier,
+  transport, membership checks, queue and file resolution remain authoritative.
+- Download rows use a keyed incremental model; page-level cancellation remorse
+  survives progress updates. Polling stops while the app is not foreground.
+- Host: 35 bridge/login/library/discovery/download/cache tests, one additional
+  playback-mode test, and 34 existing resume/queue-policy/cache-setting tests
+  passed (70 distinct checks). The five-test adapter rerun includes four already
+  counted checks plus the additional playback-mode check. Static analysis clean.
+- Full ARM64 Dart AOT and native production CMake build passed. Actual RPM
+  verification: 61 payload files, 4 ARM64 ELF files, expected dependencies, LF
+  launcher and no embedded engine. Installed 1.5.0-19; rpm -V clean.
+- Installed no-window validator passed memory PNG loading, 17 QML component
+  types, and actual Qt model insert/update/move/remove with persistent-index
+  identity checks. The dialog type is compiled rather than mounted outside a
+  page stack. No matching QML errors in native UI PID 21922's startup journal.
+- Device read-only live data: NetEase 32 recommended songs (source 每日推荐),
+  65 chart entries and 100 new songs; QQ 30 chart entries. Unsupported Bilibili
+  discovery categories are hidden and search/favorites remain available.
+- Download snapshot restored 70 existing tasks (68 completed, 2 failed).
+  Cache settings retained 2304 MB, wifiOnly/autoRetry/autoCleanup true and
+  offlineMode false. No real download was enqueued or user setting changed by
+  device probes; mutation/pause/resume behavior uses fake transport in tests.
+- Actual native process maps the Maliit input plugin. Final player state paused,
+  31 queued songs and 66 lyric lines. No automated music playback or screenshots;
+  visual layout and user-triggered real download acceptance remain unverified.
+- Final RPM SHA256:
+  216786b65f62231240dcfbc76af44406ba09f80c20dfd29e78d2f15e1362a47a
+
+## 2026-10-31 — Silica migration milestone 4 (1.5.0-20)
+
+- Added native indexed local music, explicit isolate-backed directory scanning,
+  artist/album detail navigation, local favorites and local playlist editing,
+  copying, reordering, import and export. Original Song objects and the shared
+  download-first playback resolver are retained. Local edits are serialized.
+- Host: 48 core-transfer/bridge/local-music/media/playlist/login/library/discovery/
+  download/artwork/lyrics/MPRIS tests passed. Local scan tests use real FLAC and
+  LRC fixtures with the scanner isolate, verify saved roots and index reuse,
+  and reject overlapping scans. Playlist tests use isolated storage and verify
+  concurrent edits, ordering, sharing and preservation of original audio files.
+  Targeted static analysis passed with no issues.
+- Fixed partial large writes in the existing Dart D-Bus transport by sending
+  bounded replies through expiring base64 chunks. A 360021-byte Unicode result
+  passed the production native CoreBridge receiver on an isolated phone D-Bus
+  session (NATIVE_CORE_TRANSFER_PASS); Dart service tests also round-trip a large
+  Unicode result. No dependency source was modified.
+- Staged phone no-window validation passed 25 QML component types, memory PNG
+  loading and keyed download-model operations. Dialog types compile outside a
+  real page stack; other components instantiate. An unsupported Silica TextArea
+  property was removed based on the target device's loader error.
+- Full ARM64 AOT and production native CMake build passed. Actual RPM verification
+  passed: 69 payload files, 4 ARM64 ELF files, required QML pages, system fonts,
+  LF launcher and expected runtime dependencies without an embedded engine.
+  Installed harbour-mconnect-1.5.0-20.aarch64; rpm -V clean. Installed validator
+  passed all 25 QML types plus PNG and keyed-model checks.
+- Device read-only local index: 91 tracks, 3 albums, 4 artists, 2 folders, no
+  scan in progress and no index error. No real directory scan was triggered.
+  Existing local playlist export returned a 14359-character link without
+  changing clipboard or playlist contents. NetEase search supplied valid media
+  IDs; artist detail/artwork, 50 top songs, 30 albums, album detail/artwork and
+  26 album tracks returned successfully. Existing download state retained
+  70 tasks (68 completed, 2 failed).
+- Native UI PID 24860 maps Maliit. No matching fatal launch-file errors. The
+  regular-user journal check lacked journal permissions and did not establish
+  journal-level QML validation. Final state paused, 31 queue entries and
+  66 lyric lines. No automated playback, screenshots, actual user-playlist
+  mutation or phone directory scan. Layout, input interaction, clipboard flow
+  and real scan/playback acceptance remain user-directed checks.
+- Final RPM SHA256:
+  60941855ce470020e3f2d89b163f447dda10879ff2c1914afa4d3b5a280c056e
+
+## 2026-10-31 — Native desktop launch repair (1.5.0-21)
+
+- User reported the Silica icon did not open. Direct SSH launches had bypassed
+  desktop launch restrictions. The system journal records Sailjail rejecting
+  the original /usr/share executable: "Legacy apps must be in: /usr/bin/" and
+  "Command line does not match template".
+- Added an LF /usr/bin/harbour-mconnect-silica wrapper. The desktop file uses
+  the generic invoker and explicitly disables Sailjail, matching the existing
+  business core's launch model. Silica/QML still renders the native interface;
+  generic selects process startup rather than the UI toolkit. Directly forcing
+  the sailjail CLI on this shell wrapper is unsupported (not an ELF binary);
+  the desktop entry's disabled-sandbox generic invoker path is the tested path.
+- Repacked unchanged release-20 AOT/native binaries with the launcher repair.
+  Actual RPM verification passed: 70 payload files, 4 ARM64 ELF files, launcher
+  and desktop assertions. Installed 1.5.0-21; rpm -V clean.
+- Device generic invoker returned 0. Closed the paused UI, then launched again:
+  native PID 29237 and owned core PID 29363 restored paused with 31 queued songs.
+  Repeated invoker launch retained the same two PIDs. Maliit mapped in the UI.
+  A root-authorized journal check found no matching QML errors for UI PID 29237.
+  No audio playback or screenshots. Physical icon tapping remains user acceptance.
+- RPM SHA256:
+  5b9b81691da14965b70976844ebde10ab700e6ec2d34449f3270cb70eb4a844c
+
+## 2026-10-31 — Flutter layout alignment (1.5.0-22)
+
+- Aligned the native app with Flutter's four tabs, nested-page footer, mini
+  player above the navigation capsule, compact titles/back buttons, platform and
+  song/playlist search selectors, library entry order, discovery shortcuts and
+  nine-card recommendation scroll. Added download list filters and direct
+  player shuffle/repeat/queue access. Search query and paged results survive
+  tab replacement. Full player defaults to cover and can switch to lyrics.
+- Retained original Song records, download-first playback, MCA artwork cache,
+  platform capability checks, recommendation provenance, native input setup and
+  release-21 generic desktop launcher. Added only searchPlaylists/resultArtwork
+  bridge operations; no platform adapter or audio implementation was rewritten.
+- Host: 21 adapter/discovery/library/artwork/D-Bus transfer tests passed, including
+  paged playlist search identity and coverless result handling without audio.
+  Targeted static analysis passed. A first test command referenced a nonexistent
+  core_service_test.dart; corrected to sailfish_core_service_test.dart and the
+  full selected suite passed.
+- Device staging: 29 QML component types passed, plus memory PNG, keyed download
+  model operations, a nine-card fixture with scroll content/footer-reservation
+  checks, and all four root routes with nested-page reset and footer existence.
+  Tests do not render screenshots or establish visual acceptance. The hidden
+  fixture uses actual Silica content geometry and effective visibility rather
+  than assuming its outer Page size determines its content viewport.
+- Corrected device theme icon names and Qt header-component ID scope for search
+  and local grouping. No QML errors remained in the final staged validation.
+- Full ARM64 AOT/native production build passed. Actual RPM verification passed:
+  74 payload files, 4 ARM64 ELF files, all new components, navigation capsule,
+  Explore initial page, release-21 launcher and external runtime dependencies.
+  Installed harbour-mconnect-1.5.0-22.aarch64; rpm -V clean. Installed no-window
+  validation repeated all 29 types, PNG/model/grid/navigation checks successfully.
+- Desktop generic invoker returned 0 and a second invocation retained native
+  PID 29502 / core PID 30640. Native UI maps Maliit. Root-authorized journal
+  filtering found no matching QML type/reference/layout/image errors for this UI.
+  Final state paused with 31 queued tracks. Read-only NetEase requests returned
+  30 songs and 30 playlists with correct platform identity; result artwork was
+  read successfully through the private loopback cache endpoint.
+- No screenshots, automatic playback, user playlist mutations or physical
+  keyboard input. Actual appearance, tapping/typing and playback remain user
+  acceptance. The component/geometry checks are not visual approval.
+- Final RPM SHA256:
+  77d10769240fc9d9fcdb65ef10adab2f1b32274676c224e1be610d8467e1a648
+
+## 2026-10-31 — Cyclic SlideshowView shell (1.5.0-23)
+
+- Implemented the requested 12-pane sequence, cyclic in both directions, using
+  native SlideshowView. Root platform/filter selectors and footer destinations
+  select panes in the same shell. Footer is outside the clipped slide content,
+  with an opaque backdrop; embedded root bodies hide their duplicate footer.
+- Removed Discovery/Library account pulley entries and the mini-player queue
+  icon. Player/queue helpers locate and return to existing stack entries.
+- Staged target-device validation passed 30 component types, all 12 pane bodies
+  and platform/filter IDs, forward/backward wrap, nested root reset, and repeated
+  player/queue opens with stable depths of 2/3 rather than unbounded pushes.
+  Existing PNG, keyed download-model and nine-card scroll checks also passed.
+- Initial old-Qt invalid-context warnings were reproduced without component
+  fixtures. Moving page Components from recycled delegates into the shell's
+  context removed the warnings. Only the active pane creates its pulley menu,
+  preventing inactive neighbors from registering an active menu. Final full and
+  shell-only staged validations completed without those QML warnings.
+- No Dart/audio code changed. Before update, installed release-22 libapp.so SHA256:
+  0cc01d6c2bccdab3f1b5c113c4c3923b5ac3b9836650a426e9ec69b41c41a6c3.
+- Production native CMake rebuild and actual RPM verification passed: 75 payload
+  files, 4 ARM64 ELF files, MainShellPage/SlideshowView, opaque footer backdrop,
+  removed mini-player queue route, and the preserved generic desktop launcher.
+  Reuses the unchanged release-22 AOT. Installed 1.5.0-23; rpm -V clean; libapp.so
+  SHA256 after install matches the value above exactly.
+- Installed no-window validation passed all 30 types plus opaque/clipped footer,
+  nine-card scroll, keyed model, 12-pane platform/filter order, wrap in both
+  directions, nested reset and player/queue reuse checks. No invalid-context
+  warnings in this final installed validation.
+- Generic desktop launch and repeated launch returned 0 and retained UI PID
+  31377 / core PID 37474. Native UI maps Maliit. Root-authorized journal filtering
+  found no matching QML type/reference/layout/image/context errors for that UI.
+  Final state paused with 31 queued songs. No screenshots or automated playback;
+  actual finger swipes, appearance and typing remain user-directed acceptance.
+- Final RPM SHA256:
+  26f14b504c47b3d5a162ada2ab4131e05c4689f55e899969323fa0cadf3bccd2
+
+## 2026-10-31 — Independent page groups (1.5.0-24)
+
+- Replaced the global 12-pane carousel with independent Explore/Discovery/
+  Library/Downloads groups of 4/4/1/3. Library does not slide. Only bottom-tab
+  actions change the primary page. Titles, selectors and one shared menu stay
+  outside the page-local SlideshowView; embedded bodies hide their duplicates.
+- Staged device checks passed 31 component types, each group index/platform/
+  filter mapping, forward/backward local wrap with unchanged tab, rejection of
+  out-of-range indices, and shared-menu target identity. Existing opacity/clip,
+  grid/model, nested navigation and unique player/queue checks also passed.
+- Initial shared-menu null-Flickable errors were reproduced on target Qt/Silica.
+  A persistent parking Flickable and delayed menu binding removed those errors.
+  Final staged validation completed without matching QML errors or context
+  warnings. No Dart/audio code changed; reuses the release-22 AOT core.
+- Production native rebuild and actual RPM checks passed: 76 payload files,
+  4 ARM64 ELF files, independent GroupSlideshow, shared menu, opaque footer and
+  preserved generic launcher. Installed 1.5.0-24; rpm -V clean. Installed validator
+  passed all 31 types and additionally verified remembered indices across tab
+  changes. No matching QML errors in installed validation.
+- Generic desktop launch returned 0; UI PID 37662 maps Maliit and owned core PID
+  41719 restored paused with 31 queued songs. Installed libapp.so retains SHA256
+  0cc01d6c2bccdab3f1b5c113c4c3923b5ac3b9836650a426e9ec69b41c41a6c3.
+  No screenshots, automatic playback or physical swipe/input acceptance.
+- RPM SHA256:
+  74e87c026c0fc8b4b3fb0f314df7da4de4b4983018a7780632a903fd34de4ab2
+
+## 2026-11-01 — Outer menu/cache/recovery repair (1.5.0-25)
+
+- Read-only failure evidence: native UI PID 37662 had disappeared, while core
+  PID 41719 remained paused (31 songs) and was adopted by PID 3565. The old native
+  startup guard rejects any existing org.sailfishos.Mconnect owner, explaining
+  failed reopen. Available journal retained about 55 seconds and contained no
+  original UI crash stack; the original crash cause is not proven.
+- Removed all Explore/Discovery index-body pulley code. One outer Flickable owns
+  the shared menu permanently, replacing cross-list reparenting. Coordinated
+  recommendations in the window, with durable per-platform/account .mcr metadata,
+  concurrent request joining, manual refresh and failure fallback. Added guarded
+  recovery of verified native cores and parent-death protection for fresh cores.
+- Host: 25 recommendation/cache/discovery/adapter/playback-memory/D-Bus tests
+  passed. Coverage includes concurrent joining, cache read after recreation,
+  preserved artist/album IDs, account separation, explicit refresh, failed refresh,
+  corruption, retry and recommendation tokens surviving ordinary result pressure.
+  Targeted static analysis passed with no issues.
+- Target native CoreProcess test passed identity/birth guards and parent-death
+  cleanup using /bin/sleep children (no audio). Staged 31-component validation
+  passed fixed outer-menu target identity, page-local 4/4/1/3 groups, local wrap,
+  remembered indices, unique player/queue, opaque footer and grid/model checks.
+- Full ARM64 AOT/native production build and actual RPM verification passed:
+  76 payload files, 4 ARM64 ELF files, fixed root Flickable, no pulley menus in
+  Search/Discovery source and native recovery marker. Installed 1.5.0-25;
+  rpm -V clean. Installed 31-component validation repeated successfully.
+- Recovered the actual orphan PID 41719 without pre-killing it: native UI PID
+  42688 opened paused, and journal recorded MCONNECT_SILICA_RECOVERED_CORE.
+  Normal UI shutdown then stopped both UI and old core. Fresh start produced
+  UI 58449/core 58649. NetEase returned 32 recommendations; first request wrote
+  metadata and the next returned the local-cache note.
+- After confirming paused, SIGKILL of UI 58449 also terminated core 58649 via
+  parent-death protection. Reopen succeeded as UI 58646/core 59358, paused with
+  31 queued tracks. The first recommendation request in this new core hit the
+  persisted 32-song cache. Cache directory mode 0700, .mcr file mode 0600,
+  15595 bytes, .nomedia present.
+- Root-authorized journal filtering found no matching QML type/reference/layout/
+  image/context errors for final UI 58646. No screenshots or automated playback.
+  Original spontaneous-crash causation remains unproven without its lost stack;
+  physical pulley/swipe behavior and long-run stability remain user acceptance.
+- Final RPM SHA256:
+  a13db7e4696b85495ff2358494b0c0d0b86eee0487994701ca6044e520885b4a

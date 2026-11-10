@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:mconnect/core/theme/app_theme.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
@@ -15,6 +16,23 @@ import 'package:mconnect/models/platform_type.dart';
 import 'package:mconnect/models/song.dart';
 
 void main() {
+  testWidgets('plain lyrics keep CJK fallback before and after becoming current', (tester) async {
+    final notifier = _LyricsTestPlayerNotifier();
+    const document = LyricsDocument(lines: [
+      LyricsLine(timestamp: Duration.zero, text: '第一行'),
+      LyricsLine(timestamp: Duration(seconds: 4), text: '第二行'),
+    ], format: LyricsFormat.lrc);
+    await _pumpLyricsDisplay(tester, notifier, document);
+    for (final label in ['第一行', '第二行']) {
+      expect(_nearestAnimatedTextStyle(tester, label).style.fontFamilyFallback,
+        AppTheme.systemFontFallback);
+    }
+    notifier.setProgress(const Duration(seconds: 5));
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pumpAndSettle();
+    expect(_nearestAnimatedTextStyle(tester, '第二行').style.fontFamilyFallback,
+      AppTheme.systemFontFallback);
+  });
   testWidgets('a manual lyrics offset shifts which line is current', (
     tester,
   ) async {
@@ -581,6 +599,7 @@ Future<void> _pumpLyricsDisplay(
         ...extraOverrides,
       ],
       child: MaterialApp(
+        theme: AppTheme.light(),
         home: Scaffold(
           body: SizedBox(
             height: 240,

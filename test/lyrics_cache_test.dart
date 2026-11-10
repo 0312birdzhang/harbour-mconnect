@@ -10,6 +10,7 @@ import 'package:mconnect/models/playlist.dart';
 import 'package:mconnect/models/song.dart';
 import 'package:mconnect/models/user.dart';
 import 'package:mconnect/platform/base/music_platform.dart';
+import 'package:mconnect/lyrics/models/lyrics_line.dart';
 
 /// W2-A：歌词缓存 TTL + 清理入口。
 ///
@@ -18,6 +19,44 @@ import 'package:mconnect/platform/base/music_platform.dart';
 /// 一个可注入的纯策略，并给清理入口一个可测的实现。
 void main() {
   final song = _song('netease-1');
+  test(
+    'expired lyrics remain cache-first without any network request',
+    () async {
+      final platform = _FakeLyricsPlatform(PlatformType.netease);
+      final document = await resolveLyricsForSong(
+        song: song,
+        platforms: [platform],
+        cachedLyrics: (content: '[00:01.00]离线歌词', format: 'lrc'),
+        cachedSyncedAt: 1,
+        lrclib: (_) async => throw StateError('must not request network'),
+      );
+      expect(document!.lines.single.text, '离线歌词');
+      expect(platform.requestedLyrics, isEmpty);
+    },
+  );
+  test(
+    'LRCLIB cache survives offline replay and preserves its source',
+    () async {
+      String? saved;
+      final first = await resolveLyricsForSong(
+        song: song,
+        lrclib: (_) async => '[00:01.00]缓存备用来源',
+        writeCache: (content, _) async {
+          saved = content;
+        },
+      );
+      expect(first!.source, LyricsSource.lrclib);
+      expect(saved, isNotNull);
+      final second = await resolveLyricsForSong(
+        song: song,
+        cachedLyrics: (content: saved!, format: 'lrc'),
+        cachedSyncedAt: 1,
+        lrclib: (_) async => throw StateError('offline'),
+      );
+      expect(second!.source, LyricsSource.lrclib);
+      expect(second.lines.single.text, '缓存备用来源');
+    },
+  );
 
   group('TTL policy', () {
     test('a row inside the TTL is still fresh', () {
@@ -68,25 +107,29 @@ void main() {
       expect(platform.requestedLyrics, isEmpty);
     });
 
-    test('refetches when the cached row is older than the TTL', () async {
-      final platform = _FakeLyricsPlatform(
-        PlatformType.netease,
-        lyrics: {'netease-1': '[00:01.00]网络版'},
-      );
-      final now = DateTime.fromMillisecondsSinceEpoch(1700000000000);
+    test(
+      'explicit refresh refetches when the cached row is older than the TTL',
+      () async {
+        final platform = _FakeLyricsPlatform(
+          PlatformType.netease,
+          lyrics: {'netease-1': '[00:01.00]网络版'},
+        );
+        final now = DateTime.fromMillisecondsSinceEpoch(1700000000000);
 
-      final document = await resolveLyricsForSong(
-        song: song,
-        platforms: [platform],
-        cachedLyrics: (content: '[00:01.00]缓存版', format: 'lrc'),
-        cachedSyncedAt:
-            now.millisecondsSinceEpoch - lyricsCacheTtl.inMilliseconds,
-        now: () => now,
-      );
+        final document = await resolveLyricsForSong(
+          song: song,
+          platforms: [platform],
+          cachedLyrics: (content: '[00:01.00]缓存版', format: 'lrc'),
+          cachedSyncedAt:
+              now.millisecondsSinceEpoch - lyricsCacheTtl.inMilliseconds,
+          preferCached: false,
+          now: () => now,
+        );
 
-      expect(document!.lines.single.text, '网络版');
-      expect(platform.requestedLyrics, ['netease-1']);
-    });
+        expect(document!.lines.single.text, '网络版');
+        expect(platform.requestedLyrics, ['netease-1']);
+      },
+    );
 
     test('a cached row with an unknown age is still served', () async {
       // Backward compatibility: rows written before `syncedAt` was read (and

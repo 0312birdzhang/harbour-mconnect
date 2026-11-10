@@ -5,7 +5,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/widgets/cached_artwork_image.dart';
 import '../../../../core/diagnostics/diagnostics_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/snackbar_helper.dart';
@@ -265,7 +265,7 @@ class _MiniPlayerBarState extends ConsumerState<MiniPlayerBar> {
         ClipRRect(
           borderRadius: BorderRadius.circular(4),
           child: song.coverUrl != null
-              ? CachedNetworkImage(
+              ? CachedArtworkImage(
                   imageUrl: song.coverUrl!,
                   width: coverSize,
                   height: coverSize,

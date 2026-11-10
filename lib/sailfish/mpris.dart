@@ -12,10 +12,34 @@ const _playerInterface = 'org.mpris.MediaPlayer2.Player';
 /// Session-bus MPRIS service consumed by Sailfish's system media controls.
 class SailfishMpris extends DBusObject
     implements PlaybackNotificationController {
-  SailfishMpris({DBusClient Function()? busFactory})
-    : _busFactory = busFactory ?? DBusClient.session,
-      super(DBusObjectPath('/org/mpris/MediaPlayer2'));
+  SailfishMpris({
+    DBusClient Function()? busFactory,
+    this.artworkUrl,
+  }) : _busFactory = busFactory ?? DBusClient.session,
+       super(DBusObjectPath('/org/mpris/MediaPlayer2'));
   final DBusClient Function() _busFactory;
+  final Future<String> Function(String)? artworkUrl;
+  Future<String> _nativeArtworkUrl(String source) async {
+    final bus = _bus;
+    if (bus == null || source.isEmpty) return '';
+    final remote = DBusRemoteObject(
+      bus,
+      name: 'org.sailfishos.Mconnect.Silica',
+      path: DBusObjectPath('/org/sailfishos/Mconnect/Artwork'),
+    );
+    final reply = await remote
+        .callMethod(
+          'org.sailfishos.Mconnect.Artwork',
+          'MediaUrl',
+          [DBusString(source)],
+          replySignature: DBusSignature('s'),
+        )
+        .timeout(const Duration(seconds: 3));
+    return (reply.returnValues.single as DBusString).value;
+  }
+
+  String? _localArt;
+  int _artGeneration = 0;
   static final instance = SailfishMpris();
   PlaybackNotificationActions? _actions;
   DBusClient? _bus;
@@ -61,8 +85,7 @@ class SailfishMpris extends DBusObject
         'xesam:title': DBusString(_song!.name),
         'xesam:artist': DBusArray.string([_song!.artistNames]),
         'mpris:length': DBusInt64(_duration.inMicroseconds),
-        if (_song!.coverUrl != null)
-          'mpris:artUrl': DBusString(_song!.coverUrl!),
+        if (_localArt != null) 'mpris:artUrl': DBusString(_localArt!),
       },
     }),
     'Position': DBusInt64(_position.inMicroseconds),
@@ -295,6 +318,29 @@ class SailfishMpris extends DBusObject
         currentSong?.platform != _song?.platform ||
         isPlaying != _playing ||
         duration != _duration;
+    if (currentSong?.coverUrl != _song?.coverUrl) {
+      _localArt = null;
+      final generation = ++_artGeneration;
+      final url = currentSong?.coverUrl;
+      if (url != null && url.isNotEmpty) {
+        unawaited(
+          (artworkUrl ?? _nativeArtworkUrl)(url)
+              .then((local) async {
+                if (generation != _artGeneration) return;
+                _localArt = local;
+                if (_bus != null) {
+                  await emitPropertiesChanged(
+                    _playerInterface,
+                    changedProperties: {
+                      'Metadata': _playerProperties['Metadata']!,
+                    },
+                  );
+                }
+              })
+              .catchError((Object _) {}),
+        );
+      }
+    }
     _song = currentSong;
     _playing = isPlaying;
     _position = position;

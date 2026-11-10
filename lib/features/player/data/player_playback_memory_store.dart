@@ -7,6 +7,8 @@ import '../../../models/platform_type.dart';
 import '../../../models/song.dart';
 
 class PlayerPlaybackMemory {
+  static Map<String, dynamic> encodeSong(Song song) => _songToJson(song);
+  static Song? decodeSong(dynamic value) => _songFromJson(value);
   final Song currentSong;
   final List<Song> playlist;
   final int currentIndex;

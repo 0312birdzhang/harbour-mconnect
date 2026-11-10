@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/widgets/cached_artwork_image.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/network/api_error_l10n.dart';
 import '../../../../core/network/platform_http.dart';
@@ -736,7 +736,7 @@ class _Cover extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(4),
       child: url != null && url!.isNotEmpty
-          ? CachedNetworkImage(
+          ? CachedArtworkImage(
               imageUrl: url!,
               width: 48,
               height: 48,

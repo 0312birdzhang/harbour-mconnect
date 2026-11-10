@@ -1,0 +1,21 @@
+[Desktop Entry]
+Type=Application
+Name=Mconnect
+Icon=harbour-mconnect
+Categories=AudioVideo;Audio;Music;Player;
+X-Sailplay-BackgroundService=org.sailfishos.Mconnect
+X-Sailplay-ApiVersion=1
+X-Sailplay-Service=org.sailfishos.Mconnect
+X-Sailplay-ObjectPath=/org/sailplay/v1/App
+X-Sailplay-Presentation=template
+X-Sailplay-Capabilities=media;
+Exec=/usr/bin/harbour-mconnect-silica
+X-Nemo-Application-Type=generic
+X-Nemo-Single-Instance=no
+
+[X-Sailjail]
+OrganizationName=org.sailfishos
+ApplicationName=Mconnect
+DataDirectory=harbour-mconnect
+Permissions=Internet;Audio;Music;Documents;Downloads;RemovableMedia;
+ExecDBus=/usr/bin/harbour-mconnect-silica --background

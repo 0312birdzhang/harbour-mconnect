@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import '../../core/network/api_exception.dart';
+import '../../core/network/platform_http.dart';
 import '../../core/storage/session_storage.dart';
 import '../../models/artist.dart';
 import '../../models/audio_quality.dart';
@@ -10,14 +11,23 @@ import '../../models/playlist.dart';
 import '../../models/song.dart';
 import '../../models/user.dart';
 import '../base/music_platform.dart';
+import '../../sailfish/native_platforms.dart';
 
 /// BiliMusic's web API flow, adapted for audio-only Sailfish playback.
 /// Stable IDs are BV IDs (optionally followed by :cid for a specific part).
 class BilibiliPlatform extends MusicPlatform {
-  BilibiliPlatform({Dio? dio, DateTime Function()? now})
-    : _dio = dio ?? Dio(),
-      _now = now ?? DateTime.now;
+  BilibiliPlatform({
+    Dio? dio,
+    DateTime Function()? now,
+    NativePlatformClient? nativeClient,
+  }) : _dio = dio ?? Dio(),
+       _now = now ?? DateTime.now,
+       _native = nativeClient ?? NativePlatformClient.forCurrentProcess();
   final Dio _dio;
+  final NativePlatformClient? _native;
+  int _nativeEpoch = 0;
+  String? _nativeQrKey;
+  int _nativeQrEpoch = -1;
   final DateTime Function() _now;
   final Map<String, String> _cookies = {};
   User? _user;
@@ -35,6 +45,49 @@ class BilibiliPlatform extends MusicPlatform {
   String get platformName => '哔哩哔哩音乐';
   @override
   bool get isLoggedIn => _user != null && _cookies.containsKey('SESSDATA');
+
+  String get _cookieHeader =>
+      _cookies.entries.map((e) => '${e.key}=${e.value}').join('; ');
+  Future<NativeBilibiliResult> _nativeCall(
+    String operation, [
+    Map<String, dynamic> args = const {},
+  ]) async {
+    final cookie = _cookieHeader, auth = _cookies['SESSDATA'];
+    final epoch = _nativeEpoch;
+    final NativeBilibiliResult result;
+    try {
+      result = await _native!.bilibili(operation, args, cookie: cookie);
+    } on LoginExpiredException {
+      if (epoch == _nativeEpoch && auth == _cookies['SESSDATA']) {
+        SessionExpiryReporter.report(platformType);
+      }
+      rethrow;
+    }
+    if (epoch != _nativeEpoch || auth != _cookies['SESSDATA']) {
+      throw RequestCancelledException();
+    }
+    if (result.cookie != null &&
+        (cookie == _cookieHeader ||
+            (operation == 'qrCheck' && result.qrStatus == 'success'))) {
+      _cookies.clear();
+      for (final part in result.cookie!.split(';')) {
+        final pair = part.trim();
+        final index = pair.indexOf('=');
+        if (index > 0) {
+          _cookies[pair.substring(0, index)] = pair.substring(index + 1);
+        }
+      }
+    }
+    if (operation == 'qrKey') {
+      _nativeQrKey = result.qrKey;
+      _nativeQrEpoch = epoch;
+    }
+    if (operation == 'qrCheck' && result.qrStatus == 'success') {
+      if (!_cookies.containsKey('SESSDATA')) throw LoginExpiredException();
+      _user = result.user;
+    }
+    return result;
+  }
 
   Future<Response<dynamic>> _request(
     String path, {
@@ -213,6 +266,13 @@ class BilibiliPlatform extends MusicPlatform {
     int page = 1,
     int limit = 30,
   }) async {
+    if (_native != null) {
+      return (await _nativeCall('search', {
+        'query': keyword,
+        'page': page,
+        'limit': limit.clamp(1, 50),
+      })).songs;
+    }
     if (!_cookies.containsKey('buvid3')) {
       await _get('/x/frontend/finger/spi').then((d) {
         if (d['b_3'] != null) _cookies['buvid3'] = '${d['b_3']}';
@@ -232,8 +292,11 @@ class BilibiliPlatform extends MusicPlatform {
     );
     if (data['v_voucher'] != null) {
       data = await _get('/x/web-interface/search/type', {
-        'search_type': 'video', 'keyword': keyword, 'page': page,
-        'page_size': limit.clamp(1, 50), 'order': 'totalrank',
+        'search_type': 'video',
+        'keyword': keyword,
+        'page': page,
+        'page_size': limit.clamp(1, 50),
+        'order': 'totalrank',
       });
     }
     if (data['v_voucher'] != null) {
@@ -290,6 +353,12 @@ class BilibiliPlatform extends MusicPlatform {
     String songId, {
     AudioLevel quality = AudioLevel.low,
   }) async {
+    if (_native != null) {
+      return (await _nativeCall('stream', {
+        'id': songId,
+        'quality': quality.index,
+      })).url!;
+    }
     final tracks = await _audio(songId);
     final index = quality == AudioLevel.low
         ? 0
@@ -301,6 +370,9 @@ class BilibiliPlatform extends MusicPlatform {
 
   @override
   Future<List<AudioQuality>> getAvailableQualities(String songId) async {
+    if (_native != null) {
+      return (await _nativeCall('qualities', {'id': songId})).qualities;
+    }
     final tracks = await _audio(songId);
     return [
       for (var i = 0; i < tracks.length && i < 3; i++)
@@ -314,6 +386,11 @@ class BilibiliPlatform extends MusicPlatform {
 
   @override
   Future<QrLoginResult> getQrCode() async {
+    if (_native != null) {
+      _nativeEpoch++;
+      final result = await _nativeCall('qrKey');
+      return QrLoginResult(key: result.qrKey!, qrUrl: result.qrUrl);
+    }
     final data = await _get(
       'https://passport.bilibili.com/x/passport-login/web/qrcode/generate',
     );
@@ -322,6 +399,31 @@ class BilibiliPlatform extends MusicPlatform {
 
   @override
   Stream<QrLoginStatus> pollQrStatus(String key) async* {
+    if (_native != null) {
+      final epoch = _nativeEpoch;
+      if (key != _nativeQrKey || epoch != _nativeQrEpoch) return;
+      for (var i = 0; i < 150 && epoch == _nativeEpoch; i++) {
+        await Future<void>.delayed(const Duration(seconds: 2));
+        if (epoch != _nativeEpoch) return;
+        try {
+          final result = await _nativeCall('qrCheck', {'key': key});
+          if (epoch != _nativeEpoch) return;
+          final status = QrLoginStatus.values.byName(result.qrStatus!);
+          yield status;
+          if (const [
+            QrLoginStatus.success,
+            QrLoginStatus.failed,
+            QrLoginStatus.expired,
+          ].contains(status)) {
+            return;
+          }
+        } on RequestCancelledException {
+          return;
+        }
+      }
+      if (epoch == _nativeEpoch) yield QrLoginStatus.expired;
+      return;
+    }
     for (var i = 0; i < 150; i++) {
       await Future<void>.delayed(const Duration(seconds: 2));
       final data = await _get(
@@ -353,6 +455,7 @@ class BilibiliPlatform extends MusicPlatform {
   }
 
   Future<User?> _fetchUser() async {
+    if (_native != null) return (await _nativeCall('profile')).user;
     final data = await _get('/x/web-interface/nav');
     if (data['isLogin'] != true) return null;
     return User(
@@ -371,6 +474,8 @@ class BilibiliPlatform extends MusicPlatform {
       const LoginResult(success: false, error: '请使用哔哩哔哩客户端扫码登录');
   @override
   Future<void> logout() async {
+    _nativeEpoch++;
+    _nativeQrKey = null;
     _cookies.clear();
     _user = null;
     _mixin = null;
@@ -384,11 +489,15 @@ class BilibiliPlatform extends MusicPlatform {
 
   @override
   Future<void> restoreSession(SessionStorage storage) async {
+    final epoch = ++_nativeEpoch;
     final raw = await storage.loadCookie(platformType);
+    if (epoch != _nativeEpoch) return;
     if (raw == null) return;
     try {
       _cookies.addAll(Map<String, String>.from(jsonDecode(raw) as Map));
-      _user = await storage.loadUser(platformType);
+      final user = await storage.loadUser(platformType);
+      if (epoch != _nativeEpoch) return;
+      _user = user;
     } catch (_) {
       await logout();
     }
@@ -397,6 +506,12 @@ class BilibiliPlatform extends MusicPlatform {
   @override
   Future<List<Playlist>> getUserPlaylists() async {
     if (!isLoggedIn) throw LoginExpiredException();
+    if (_native != null) {
+      return (await _nativeCall('folders', {
+        'uid': _user!.id,
+        'nickname': _user!.nickname,
+      })).playlists;
+    }
     final result = <Playlist>[];
     for (var page = 1; ; page++) {
       final data = await _get('/x/v3/fav/folder/created/list', {
@@ -425,6 +540,9 @@ class BilibiliPlatform extends MusicPlatform {
 
   @override
   Future<List<Song>> getPlaylistDetail(String playlistId) async {
+    if (_native != null) {
+      return (await _nativeCall('playlist', {'id': playlistId})).songs;
+    }
     if (playlistId.startsWith('video:')) {
       final id = playlistId.substring(6);
       final data = await _get('/x/web-interface/view', {'bvid': id});
@@ -475,6 +593,12 @@ class BilibiliPlatform extends MusicPlatform {
 
   Future<bool> _favorite(String playlist, Song song, bool add) async {
     if (!isLoggedIn) throw LoginExpiredException();
+    if (_native != null) {
+      return (await _nativeCall(add ? 'add' : 'remove', {
+        'id': playlist,
+        'songId': song.id,
+      })).ok;
+    }
     final detail = await _get('/x/web-interface/view', {
       'bvid': song.id.split(':').first,
     });
@@ -500,6 +624,9 @@ class BilibiliPlatform extends MusicPlatform {
   @override
   Future<bool> likeSong(String songId, {bool like = true}) async {
     if (!isLoggedIn) throw LoginExpiredException();
+    if (_native != null) {
+      return (await _nativeCall('like', {'id': songId, 'enabled': like})).ok;
+    }
     final data = await _get('/x/web-interface/view', {
       'bvid': songId.split(':').first,
     });
@@ -516,6 +643,9 @@ class BilibiliPlatform extends MusicPlatform {
 
   @override
   Future<String?> getLyrics(String songId) async {
+    if (_native != null) {
+      return (await _nativeCall('lyrics', {'id': songId})).lyrics;
+    }
     final part = await _part(songId);
     final data = await _get(
       '/x/player/wbi/v2',
@@ -553,6 +683,10 @@ class BilibiliPlatform extends MusicPlatform {
   Future<VipLevel> getVipStatus() async => _user?.vipLevel ?? VipLevel.free;
   @override
   Future<Playlist?> parseShareLink(String url) async {
+    if (_native != null) {
+      final rows = (await _nativeCall('share', {'url': url})).playlists;
+      return rows.isEmpty ? null : rows.first;
+    }
     final uri = Uri.tryParse(url);
     if (uri == null ||
         !(uri.host == 'bilibili.com' || uri.host.endsWith('.bilibili.com'))) {

@@ -1,60 +1,58 @@
 Name: harbour-mconnect
 Summary: Multi-platform music player for Sailfish OS
-Version: 1.5.0
-Release: 13
+Version: 1.6.0
+Release: 53
 Group: Applications/System
-License: MIT
+License: MIT and GPLv3+
+URL: https://github.com/Hjdd14/Mconnect-Music_connect
 NoIconCache: true
 Sources:
 - '%{name}-%{version}.tar.bz2'
 Description: |
-    flutter-elinux build elinux against flutter-sfos-@FLUTTER_VERSION@.
-    Engine/embedder .so come from the runtime RPM, not this package.
+    Native C++ music services and GStreamer playback with a Sailfish
+    Silica interface.
 Configure: none
 Builder: none
 Requires:
+- sailjail
+- sailfishsilica-qt5
+- sailfish-components-pickers-qt5
 - qt5-qtwayland-wayland_egl
 - gstreamer1.0-plugins-base
 - gstreamer1.0-plugins-good
-- libsqlite3.so.0()(64bit)
 - /usr/share/fonts/wqy-zenhei/wqy-zenhei.ttc
 - /usr/share/fonts/sail-sans-pro/SailSansPro-Light.ttf
 - /usr/share/fonts/amiri/amiri-regular.ttf
-- flutter-sfos-@FLUTTER_VERSION@ = @FLUTTER_VERSION@
+- /usr/share/fonts/notoemoji/NotoEmoji-Regular.ttf
+- /usr/share/fonts/dejavu/DejaVuSans.ttf
 PkgBR:
+- pkgconfig(sailfishapp)
+- pkgconfig(Qt5Qml)
+- pkgconfig(Qt5Quick)
 - pkgconfig(Qt5Gui)
 - pkgconfig(Qt5DBus)
 - pkgconfig(Qt5Network)
-- pkgconfig(Qt5WaylandClient)
-- pkgconfig(wayland-client)
-- pkgconfig(gio-2.0)
 - pkgconfig(sqlite3)
+- pkgconfig(zlib)
+- pkgconfig(taglib)
 - pkgconfig(gstreamer-1.0)
-- clang
+- gcc-c++
 - cmake
 - make
-- git
-- unzip
-- curl
 - python3-base
-ExtraInstall: |
-  rpm -q flutter-sfos-@FLUTTER_VERSION@-devel >/dev/null || rpm -Uvh --force flutter-sfos-@FLUTTER_VERSION@-*.aarch64.rpm
-  /usr/libexec/flutter-sfos/@FLUTTER_VERSION@/flutter-sfos-aot "$PWD" "$PWD/build/sfos/bundle"
-  mkdir -p %{buildroot}%{_datadir}/harbour-mconnect
-  mkdir -p %{buildroot}%{_bindir}
-  mkdir -p %{buildroot}%{_datadir}/applications
-  cp -a build/sfos/bundle/. %{buildroot}%{_datadir}/harbour-mconnect/
-  python3 tools/prepare-font-assets.py %{buildroot}%{_datadir}/harbour-mconnect/data/flutter_assets
-  rm -f %{buildroot}%{_datadir}/harbour-mconnect/lib/libflutter_engine.so \
-    %{buildroot}%{_datadir}/harbour-mconnect/lib/libflutter_elinux_*.so
-  install -m 755 elinux/harbour-mconnect.sh %{buildroot}%{_bindir}/harbour-mconnect
-  install -m 644 elinux/harbour-mconnect.desktop %{buildroot}%{_datadir}/applications/harbour-mconnect.desktop
-  mkdir -p %{buildroot}%{_datadir}/icons/hicolor/128x128/apps
-  install -m 644 assets/icon/app_icon.png %{buildroot}%{_datadir}/icons/hicolor/128x128/apps/harbour-mconnect.png
-  install -D -m 644 elinux/org.sailfishos.Mconnect.service %{buildroot}%{_datadir}/dbus-1/services/org.sailfishos.Mconnect.service
 Files:
+- '%config %{_sysconfdir}/sailjail/permissions/harbour-mconnect.profile'
+- '%config %{_sysconfdir}/sailjail/permissions/harbour-mconnect-silica.profile'
+- '%license %{_datadir}/licenses/%{name}/'
+- '%{_bindir}/harbour-mconnect-silica'
+- '%{_datadir}/applications/harbour-mconnect-silica.desktop'
 - '%{_datadir}/dbus-1/services/org.sailfishos.Mconnect.service'
+- '%{_datadir}/icons/hicolor/86x86/apps/harbour-mconnect.png'
+- '%{_datadir}/icons/hicolor/108x108/apps/harbour-mconnect.png'
 - '%{_datadir}/icons/hicolor/128x128/apps/harbour-mconnect.png'
+- '%{_datadir}/icons/hicolor/172x172/apps/harbour-mconnect.png'
 - '%{_bindir}/harbour-mconnect'
+- '%{_libexecdir}/harbour-mconnect-core'
+- '%{_libexecdir}/harbour-mconnect/'
 - '%{_datadir}/applications/harbour-mconnect.desktop'
 - '%{_datadir}/harbour-mconnect/'

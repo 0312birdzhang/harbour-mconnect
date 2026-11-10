@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -16,17 +17,91 @@ import '../../core/network/api_exception.dart';
 import '../../core/network/platform_http.dart';
 import '../../core/storage/session_storage.dart';
 import 'kugou_api.dart';
+import '../../sailfish/native_platforms.dart';
 
 class KugouPlatform extends MusicPlatform {
   final KugouApi _api;
   User? _currentUser;
+  final NativePlatformClient? _native;
+  int _nativeEpoch = 0;
+  String? _nativeQrKey;
 
-  KugouPlatform({KugouApi? api}) : _api = api ?? KugouApi();
+  KugouPlatform({KugouApi? api, NativePlatformClient? nativeClient})
+    : _api = api ?? KugouApi(),
+      _native = nativeClient ?? NativePlatformClient.forCurrentProcess();
 
   KugouApi get api => _api;
 
+  String _nativeSession() => jsonEncode({
+    if (_api.token != null) 'token': _api.token,
+    if (_api.userid != null) 'userid': _api.userid,
+    if (_api.vipToken != null) 'vip_token': _api.vipToken,
+    if (_api.vipType != null) 'vip_type': _api.vipType,
+    if (_api.dfid != null) 'dfid': _api.dfid,
+    if (_api.mid != null) 'mid': _api.mid,
+    if (_api.uuid != null) 'uuid': _api.uuid,
+    'client': _api.clientModeName,
+  });
+
+  Future<T> _nativeSessionRequest<T>(Future<T> Function(String) request) async {
+    final epoch = _nativeEpoch, session = _nativeSession();
+    try {
+      final result = await request(session);
+      if (epoch != _nativeEpoch || _nativeSession() != session) {
+        throw RequestCancelledException();
+      }
+      return result;
+    } on LoginExpiredException {
+      if (epoch != _nativeEpoch || _nativeSession() != session) {
+        throw RequestCancelledException();
+      }
+      SessionExpiryReporter.report(platformType);
+      rethrow;
+    }
+  }
+
+  Future<NativeQqResult> _nativeContent(
+    String operation,
+    Map<String, dynamic> arguments,
+  ) => _nativeSessionRequest(
+    (session) => _native!.kugouContent(operation, arguments, session: session),
+  );
+
+  Future<NativeKugouAccount> _nativeAccount(
+    String operation,
+    Map<String, dynamic> arguments,
+  ) => _nativeSessionRequest(
+    (session) => _native!.kugouAccount(operation, arguments, session: session),
+  );
+
+  Future<NativeKugouLibrary> _nativeLibrary(
+    String operation,
+    Map<String, dynamic> arguments,
+  ) => _nativeSessionRequest(
+    (session) => _native!.kugouLibrary(operation, arguments, session: session),
+  );
+
+  void _cancelNativeQr(String key) {
+    unawaited(
+      _native!
+          .kugouAccount('qrCancel', {'key': key}, session: _nativeSession())
+          .then<void>((_) {}, onError: (Object _) {}),
+    );
+  }
+
+  void _retireNativeQr() {
+    final key = _nativeQrKey;
+    _nativeQrKey = null;
+    if (_native != null && key != null) _cancelNativeQr(key);
+  }
+
   void setClientVariant(String? variant) {
+    final previous = _api.clientMode;
     _api.setClientVariant(variant);
+    if (_api.clientMode != previous) {
+      _nativeEpoch++;
+      _retireNativeQr();
+    }
   }
 
   @override
@@ -75,6 +150,22 @@ class KugouPlatform extends MusicPlatform {
 
   @override
   Future<QrLoginResult> getQrCode() async {
+    _nativeEpoch++;
+    _retireNativeQr();
+    if (_native != null) {
+      final epoch = _nativeEpoch, session = _nativeSession();
+      final result = await _native.kugouAccount('qrKey', {}, session: session);
+      if (epoch != _nativeEpoch || session != _nativeSession()) {
+        if (result.qrKey != null) _cancelNativeQr(result.qrKey!);
+        throw RequestCancelledException();
+      }
+      _nativeQrKey = result.qrKey;
+      return QrLoginResult(
+        key: result.qrKey!,
+        qrUrl: result.qrUrl,
+        qrBytes: result.qrBytes,
+      );
+    }
     try {
       final res = await _api.getQrLoginKey();
       final data = res['data'];
@@ -111,6 +202,10 @@ class KugouPlatform extends MusicPlatform {
 
   @override
   Stream<QrLoginStatus> pollQrStatus(String key) async* {
+    if (_native != null) {
+      yield* _pollNativeQrStatus(key);
+      return;
+    }
     const maxAttempts = 150; // 5 minutes
     for (var i = 0; i < maxAttempts; i++) {
       await Future.delayed(const Duration(seconds: 2));
@@ -167,6 +262,59 @@ class KugouPlatform extends MusicPlatform {
       }
     }
     yield QrLoginStatus.failed;
+  }
+
+  Stream<QrLoginStatus> _pollNativeQrStatus(String key) async* {
+    final epoch = _nativeEpoch, session = _nativeSession();
+    if (_nativeQrKey != key) return;
+    try {
+      for (var attempt = 0; attempt < 150; attempt++) {
+        await Future<void>.delayed(const Duration(seconds: 2));
+        if (_nativeQrKey != key ||
+            epoch != _nativeEpoch ||
+            session != _nativeSession()) {
+          return;
+        }
+        final result = await _native!.kugouAccount('qrCheck', {
+          'key': key,
+        }, session: session);
+        if (_nativeQrKey != key ||
+            epoch != _nativeEpoch ||
+            session != _nativeSession()) {
+          return;
+        }
+        switch (result.qrStatus) {
+          case 'waiting':
+            yield QrLoginStatus.waiting;
+          case 'scanned':
+            yield QrLoginStatus.scanned;
+          case 'success':
+            _api.clearSession();
+            _restoreApiSessionCookie(result.session!);
+            _currentUser = result.user;
+            _nativeEpoch++;
+            yield QrLoginStatus.success;
+            return;
+          case 'expired':
+            yield QrLoginStatus.expired;
+            return;
+          default:
+            yield QrLoginStatus.failed;
+            return;
+        }
+      }
+      yield QrLoginStatus.failed;
+    } on RequestCancelledException {
+      return;
+    } catch (_) {
+      if (_nativeQrKey == key &&
+          epoch == _nativeEpoch &&
+          session == _nativeSession()) {
+        yield QrLoginStatus.failed;
+      }
+    } finally {
+      if (_nativeQrKey == key) _retireNativeQr();
+    }
   }
 
   User _userFromData(Map<dynamic, dynamic> data, {String? fallbackUserId}) {
@@ -321,29 +469,24 @@ class KugouPlatform extends MusicPlatform {
   /// wire in cleartext to a host that cannot be reached over TLS.
   @override
   Future<LoginResult> sendPhoneCode(String phone) async {
-    return const LoginResult(
-      success: false,
-      error: _phoneLoginRetiredMessage,
-    );
+    return const LoginResult(success: false, error: _phoneLoginRetiredMessage);
   }
 
   /// Retired in v1.4.1 — see [sendPhoneCode]. No network request is made.
   @override
   Future<LoginResult> loginByPhone(String phone, String code) async {
-    return const LoginResult(
-      success: false,
-      error: _phoneLoginRetiredMessage,
-    );
+    return const LoginResult(success: false, error: _phoneLoginRetiredMessage);
   }
 
-  static const String _phoneLoginRetiredMessage =
-      '酷狗已不再支持手机号登录，请使用扫码登录';
+  static const String _phoneLoginRetiredMessage = '酷狗已不再支持手机号登录，请使用扫码登录';
 
   @override
   Future<User?> getUserInfo() async => _currentUser;
 
   @override
   Future<void> logout() async {
+    _nativeEpoch++;
+    _retireNativeQr();
     _currentUser = null;
     // Clearing only `_currentUser` used to leave `token`/`userid`/`vipToken` in
     // the API client, where `_signedAndroidParams` kept injecting them into
@@ -376,11 +519,16 @@ class KugouPlatform extends MusicPlatform {
 
   @override
   Future<void> restoreSession(SessionStorage storage) async {
+    final epoch = ++_nativeEpoch;
+    _retireNativeQr();
     final cookie = await storage.loadCookie(platformType);
+    if (epoch != _nativeEpoch) return;
     if (cookie != null && cookie.isNotEmpty) {
+      _api.clearSession();
       _restoreApiSessionCookie(cookie);
     }
     final user = await storage.loadUser(platformType);
+    if (epoch != _nativeEpoch) return;
     if (user != null) {
       _currentUser = user;
       _syncApiUserIdFromCurrentUser();
@@ -419,6 +567,13 @@ class KugouPlatform extends MusicPlatform {
     int page = 1,
     int limit = 30,
   }) async {
+    if (_native != null) {
+      return (await _native.kugouCatalog('search', {
+        'query': keyword,
+        'page': page,
+        'limit': limit,
+      })).songs;
+    }
     final res = await _api.search(keyword, page: page, limit: limit);
     final data = res['data']?['info'] as List<dynamic>?;
     if (data == null) return [];
@@ -433,6 +588,13 @@ class KugouPlatform extends MusicPlatform {
     int limit = 30,
   }) async {
     try {
+      if (_native != null) {
+        return (await _nativeContent('searchPlaylists', {
+          'query': keyword,
+          'page': page,
+          'limit': limit,
+        })).playlists;
+      }
       final res = await _api.searchPlaylists(keyword, page: page, limit: limit);
       final list =
           res['data']?['lists'] as List<dynamic>? ??
@@ -533,6 +695,12 @@ class KugouPlatform extends MusicPlatform {
     String songId, {
     AudioLevel quality = AudioLevel.low,
   }) async {
+    if (_native != null) {
+      return (await _nativeContent('stream', {
+        'id': songId,
+        'quality': quality.index,
+      })).url!;
+    }
     final res = await _api.getSongInfo(songId);
     final playUrl = _extractPlayableUrl(res);
     if (quality == AudioLevel.low && playUrl != null && playUrl.isNotEmpty) {
@@ -748,6 +916,9 @@ class KugouPlatform extends MusicPlatform {
 
   @override
   Future<List<AudioQuality>> getAvailableQualities(String songId) async {
+    if (_native != null) {
+      return (await _nativeContent('qualities', {'id': songId})).qualities;
+    }
     return [
       const AudioQuality(level: AudioLevel.low, bitrate: 128000, format: 'mp3'),
       const AudioQuality(
@@ -779,6 +950,9 @@ class KugouPlatform extends MusicPlatform {
   Future<String?> getLyrics(String songId) async {
     // songId is the Kugou hash
     try {
+      if (_native != null) {
+        return (await _nativeContent('lyrics', {'id': songId})).lyrics?.lrc;
+      }
       debugPrint('Kugou getLyrics: songId=$songId');
 
       // Primary: hash-based search (most reliable, no singer/song name needed)
@@ -856,6 +1030,12 @@ class KugouPlatform extends MusicPlatform {
   /// Get lyrics by keyword and duration (for better matching)
   Future<String?> getLyricsByInfo(String keyword, int duration) async {
     try {
+      if (_native != null) {
+        return (await _nativeContent('lyricsByInfo', {
+          'query': keyword,
+          'duration': duration,
+        })).lyrics?.lrc;
+      }
       final candidates = await _api.searchLyrics(keyword, duration: duration);
       if (candidates.isEmpty) return null;
 
@@ -876,6 +1056,9 @@ class KugouPlatform extends MusicPlatform {
   @override
   Future<List<Playlist>> getUserPlaylists() async {
     try {
+      if (_native != null) {
+        return (await _nativeLibrary('userPlaylists', {})).playlists;
+      }
       final res = await _api.getUserPlaylists();
       final data = res['data'];
       final list = <dynamic>[];
@@ -899,6 +1082,9 @@ class KugouPlatform extends MusicPlatform {
   @override
   Future<List<Song>> getPlaylistDetail(String playlistId) async {
     try {
+      if (_native != null) {
+        return (await _nativeLibrary('playlist', {'id': playlistId})).songs;
+      }
       final list = playlistId.startsWith('collection_')
           ? await _loadPagedSongs(
               (page, limit) => _api.getSharedPlaylistSongs(
@@ -937,6 +1123,7 @@ class KugouPlatform extends MusicPlatform {
   @override
   Future<List<Song>> getLikedSongs() async {
     try {
+      if (_native != null) return (await _nativeLibrary('liked', {})).songs;
       final res = await _api.getLikedSongs();
       final list = res['data']?['info'] as List<dynamic>?;
       if (list == null) return [];
@@ -950,6 +1137,9 @@ class KugouPlatform extends MusicPlatform {
   @override
   Future<bool> likeSong(String songId, {bool like = true}) async {
     try {
+      if (_native != null) {
+        return (await _nativeLibrary('like', {'id': songId, 'like': like})).ok;
+      }
       if (like) {
         await _api.collectSong(songId);
       } else {
@@ -970,6 +1160,12 @@ class KugouPlatform extends MusicPlatform {
   @override
   Future<Playlist?> createPlaylist(String name) async {
     try {
+      if (_native != null) {
+        final result = await _nativeLibrary('create', {'name': name});
+        return result.ok && result.playlists.isNotEmpty
+            ? result.playlists.first
+            : null;
+      }
       final res = await _api.createPlaylist(name);
       if (_isSuccessResponse(res)) {
         final refreshed = await _findCreatedPlaylistByName(name);
@@ -1025,6 +1221,12 @@ class KugouPlatform extends MusicPlatform {
   @override
   Future<bool> collectPlaylist(String playlistId, {bool collect = true}) async {
     try {
+      if (_native != null) {
+        return (await _nativeLibrary('collect', {
+          'id': playlistId,
+          'collect': collect,
+        })).ok;
+      }
       final res = await _api.collectPlaylist(playlistId, collect: collect);
       return _isSuccessResponse(res);
     } catch (e) {
@@ -1102,6 +1304,9 @@ class KugouPlatform extends MusicPlatform {
   /// homepage. Kept as a real attempt so the fallback stays exercised.
   Future<List<Song>?> _fetchOfficialRecommendations() async {
     try {
+      if (_native != null) {
+        return (await _native.kugouCatalog('recommend', {})).songs;
+      }
       final res = await _api.getRecommend();
       final list = res['data']?['info'] as List<dynamic>?;
       if (list == null || list.isEmpty) {
@@ -1134,6 +1339,9 @@ class KugouPlatform extends MusicPlatform {
   /// embedded in `special.list.info[]`, de-duplicated by hash.
   @visibleForTesting
   Future<List<Song>> fetchHomepageRecommendations() async {
+    if (_native != null) {
+      return (await _native.kugouCatalog('homepage', {})).songs;
+    }
     final res = await _api.getHomepage();
     final songs = <Song>[];
     final seen = <String>{};
@@ -1180,6 +1388,14 @@ class KugouPlatform extends MusicPlatform {
   @override
   Future<List<Song>> getRankingList() async {
     try {
+      if (_native != null) {
+        return (await _native.kugouCatalog('ranked', {
+          'id': '8888',
+          'offset': 0,
+          'limit': 100,
+          'period': '',
+        })).songs;
+      }
       final res = await _api.getRankList();
       final list = res['data']?['info'] as List<dynamic>?;
       if (list == null) return [];
@@ -1194,6 +1410,9 @@ class KugouPlatform extends MusicPlatform {
 
   @override
   Future<List<Toplist>> getToplists() async {
+    if (_native != null) {
+      return (await _native.kugouCatalog('toplists', {})).charts;
+    }
     final res = await _api.getToplists();
     final list = res['data']?['info'] as List<dynamic>?;
     if (list == null) return const [];
@@ -1207,7 +1426,8 @@ class KugouPlatform extends MusicPlatform {
             name: (item['rankname'] ?? '酷狗榜单').toString(),
             coverUrl: _normalizeSizeTemplate(item['imgurl']?.toString()),
             updateFrequency: _nonEmpty(item['update_frequency']),
-            songCount: _firstInt(item, const ['songcount']) ??
+            songCount:
+                _firstInt(item, const ['songcount']) ??
                 _rankTotalFromExtra(item['extra']),
             period: _nonEmpty(item['rank_id_publish_date']),
             intro: _nonEmpty(item['intro']),
@@ -1233,6 +1453,14 @@ class KugouPlatform extends MusicPlatform {
     int num = 100,
     String? period,
   }) async {
+    if (_native != null) {
+      return (await _native.kugouCatalog('ranked', {
+        'id': toplistId,
+        'offset': offset < 0 ? 0 : offset,
+        'limit': num <= 0 ? 100 : num,
+        'period': period ?? '',
+      })).ranked;
+    }
     final rankId = int.tryParse(toplistId);
     if (rankId == null) {
       throw ApiException(message: '无效的酷狗榜单 id: $toplistId');
@@ -1255,7 +1483,8 @@ class KugouPlatform extends MusicPlatform {
         // `sort` is the real chart position when present; otherwise derive it
         // from the page/offset arithmetic.
         final absolute = offset + i;
-        final rank = _firstInt(raw, const ['sort']) ??
+        final rank =
+            _firstInt(raw, const ['sort']) ??
             (absolute < 0 ? i + 1 : absolute + 1);
         songs.add(
           RankedSong(
@@ -1287,6 +1516,9 @@ class KugouPlatform extends MusicPlatform {
 
   @override
   Future<Artist?> getArtistDetail(String artistId) async {
+    if (_native != null) {
+      return (await _native.kugouCatalog('artist', {'id': artistId})).artist;
+    }
     final res = await _api.getArtistInfo(artistId);
     final data = res['data'];
     if (data is! Map) return null;
@@ -1310,6 +1542,12 @@ class KugouPlatform extends MusicPlatform {
     String artistId, {
     int limit = 50,
   }) async {
+    if (_native != null) {
+      return (await _native.kugouCatalog('artistSongs', {
+        'id': artistId,
+        'limit': limit <= 0 ? 50 : limit,
+      })).songs;
+    }
     final pageSize = limit <= 0 ? 50 : limit;
     final res = await _api.getArtistSongs(artistId, pagesize: pageSize);
     final list = res['data']?['info'] as List<dynamic>?;
@@ -1324,6 +1562,13 @@ class KugouPlatform extends MusicPlatform {
     int page = 1,
     int limit = 30,
   }) async {
+    if (_native != null) {
+      return (await _native.kugouCatalog('artistAlbums', {
+        'id': artistId,
+        'page': page,
+        'limit': limit <= 0 ? 30 : limit,
+      })).albums;
+    }
     final pageSize = limit <= 0 ? 30 : limit;
     final res = await _api.getArtistAlbums(
       artistId,
@@ -1337,6 +1582,9 @@ class KugouPlatform extends MusicPlatform {
 
   @override
   Future<Album?> getAlbumDetail(String albumId) async {
+    if (_native != null) {
+      return (await _native.kugouCatalog('album', {'id': albumId})).album;
+    }
     final res = await _api.getAlbumInfo(albumId);
     final data = res['data'];
     if (data is! Map) return null;
@@ -1347,6 +1595,9 @@ class KugouPlatform extends MusicPlatform {
 
   @override
   Future<List<Song>> getAlbumSongs(String albumId) async {
+    if (_native != null) {
+      return (await _native.kugouCatalog('albumSongs', {'id': albumId})).songs;
+    }
     final res = await _api.getAlbumSongs(albumId);
     final list = res['data']?['info'] as List<dynamic>?;
     if (list == null) return const [];
@@ -1406,6 +1657,13 @@ class KugouPlatform extends MusicPlatform {
 
   @override
   Future<VipLevel> getVipStatus() async {
+    if (_native != null) {
+      try {
+        return (await _nativeAccount('vip', {})).vipLevel;
+      } catch (_) {
+        return VipLevel.free;
+      }
+    }
     final localLevel = _vipLevelFromSession();
     if (localLevel != VipLevel.free) return localLevel;
 
@@ -1460,6 +1718,14 @@ class KugouPlatform extends MusicPlatform {
 
   @override
   Future<Playlist?> parseShareLink(String url) async {
+    if (_native != null) {
+      try {
+        final result = await _nativeLibrary('share', {'url': url});
+        return result.playlists.isEmpty ? null : result.playlists.first;
+      } catch (_) {
+        return null;
+      }
+    }
     final resolvedUrl = await _resolveShareUrlIfNeeded(url);
     final id = _extractSharePlaylistId(resolvedUrl ?? url);
     if (id == null) return null;

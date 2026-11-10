@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import '../../../../core/widgets/cached_artwork_image.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -68,7 +69,8 @@ class LocalMusicPage extends ConsumerWidget {
           Expanded(
             child: _LocalLibraryBody(state: state, notifier: notifier),
           ),
-          if (state.isSelecting) _SelectionBar(state: state, notifier: notifier),
+          if (state.isSelecting)
+            _SelectionBar(state: state, notifier: notifier),
         ],
       ),
     );
@@ -97,7 +99,10 @@ class _Header extends StatelessWidget {
                   state.selectedDirectory ?? '尚未选择文件夹',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: theme.colorScheme.outline, fontSize: 13),
+                  style: TextStyle(
+                    color: theme.colorScheme.outline,
+                    fontSize: 13,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -205,7 +210,8 @@ class _SearchAndSortBarState extends State<_SearchAndSortBar> {
     final keyword = widget.state.query.keyword;
     // Only when the *provider* changed it: otherwise this would reset the cursor
     // on every keystroke.
-    if (keyword != oldWidget.state.query.keyword && keyword != _controller.text) {
+    if (keyword != oldWidget.state.query.keyword &&
+        keyword != _controller.text) {
       _controller.text = keyword;
       _controller.selection = TextSelection.collapsed(offset: keyword.length);
     }
@@ -391,7 +397,11 @@ class _SkippedFilesBanner extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(Icons.info_outline, size: 16, color: theme.colorScheme.outline),
+            Icon(
+              Icons.info_outline,
+              size: 16,
+              color: theme.colorScheme.outline,
+            ),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
@@ -525,7 +535,12 @@ class _SongList extends ConsumerWidget {
             onLongPress: state.isSelecting && selectable
                 ? null
                 : () => unawaited(
-                    showSongActionsMenu(context, ref, song: song, isLocal: true),
+                    showSongActionsMenu(
+                      context,
+                      ref,
+                      song: song,
+                      isLocal: true,
+                    ),
                   ),
           );
         },
@@ -548,10 +563,7 @@ class _GroupList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (groups.isEmpty) {
-      return AsyncStateView.empty(
-        title: emptyLabel,
-        message: '换一个视图，或者重新扫描一次',
-      );
+      return AsyncStateView.empty(title: emptyLabel, message: '换一个视图，或者重新扫描一次');
     }
     return AppScrollbar(
       builder: (controller) => ListView.builder(
@@ -563,7 +575,11 @@ class _GroupList extends ConsumerWidget {
           return ExpansionTile(
             key: Key('$keyPrefix-group-${group.id}'),
             leading: _Cover(path: group.coverPath),
-            title: Text(group.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+            title: Text(
+              group.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
             subtitle: Text(
               '${group.subtitle ?? ''}'
               '${group.subtitle != null ? ' · ' : ''}'
@@ -578,12 +594,9 @@ class _GroupList extends ConsumerWidget {
                   track: group.tracks[i],
                   hasLyrics: false,
                   alsoOnline: false,
-                  onTap: () => ref
-                      .read(playerProvider.notifier)
-                      .playPlaylist(
-                        [for (final track in group.tracks) track.toSong()],
-                        startIndex: i,
-                      ),
+                  onTap: () => ref.read(playerProvider.notifier).playPlaylist([
+                    for (final track in group.tracks) track.toSong(),
+                  ], startIndex: i),
                   onLongPress: () {
                     final song = group.tracks[i].toSong();
                     unawaited(
@@ -706,7 +719,8 @@ class CoverFileKey {
 typedef FileExistsProbe = bool Function(String path);
 
 final coverExistsProbeProvider = Provider<FileExistsProbe>(
-  (ref) => (path) => File(path).existsSync(),
+  (ref) =>
+      (path) => File(path).existsSync(),
 );
 
 /// Memoised cover-file existence.
@@ -719,12 +733,11 @@ final coverExistsProbeProvider = Provider<FileExistsProbe>(
 /// `autoDispose` because the key includes the scan generation: without it every
 /// scan would leave one family entry per cover behind, for the container's whole
 /// lifetime.
-final coverFileExistsProvider = Provider.autoDispose.family<bool, CoverFileKey>((
-  ref,
-  key,
-) {
-  return ref.watch(coverExistsProbeProvider)(key.path);
-});
+final coverFileExistsProvider = Provider.autoDispose.family<bool, CoverFileKey>(
+  (ref, key) {
+    return ref.watch(coverExistsProbeProvider)(key.path);
+  },
+);
 
 class _Cover extends ConsumerWidget {
   const _Cover({this.path});
@@ -740,20 +753,19 @@ class _Cover extends ConsumerWidget {
 
     final scan = ref.watch(localMusicProvider.select((s) => s.lastScan));
     final exists = ref.watch(
-      coverFileExistsProvider(
-        CoverFileKey(imagePath, identityHashCode(scan)),
-      ),
+      coverFileExistsProvider(CoverFileKey(imagePath, identityHashCode(scan))),
     );
     if (!exists) return _placeholder(context);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(6),
-      child: Image.file(
-        File(imagePath),
+      child: CachedArtworkImage(
+        imageUrl: imagePath,
         width: size,
         height: size,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stack) => _placeholder(context),
+        placeholder: (context, _) => _placeholder(context),
+        errorWidget: (context, _, _) => _placeholder(context),
       ),
     );
   }
@@ -882,9 +894,7 @@ class _SelectionBar extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text('移出 $count 首？'),
-        content: const Text(
-          '只会从曲库索引里移除这些记录及其缓存歌词，不会删除音频文件；下次扫描会重新出现。',
-        ),
+        content: const Text('只会从曲库索引里移除这些记录及其缓存歌词，不会删除音频文件；下次扫描会重新出现。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),

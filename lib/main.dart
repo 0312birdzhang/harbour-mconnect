@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:dbus/dbus.dart';
 import 'sailfish/mpris.dart';
+import 'sailfish/qml_core_adapter.dart';
+import 'core/network/platform_http.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/player/presentation/providers/player_provider.dart';
 import 'package:flutter/material.dart';
@@ -22,13 +25,17 @@ import 'platform/base/platform_registry.dart';
 import 'platform/netease/netease_platform.dart';
 import 'platform/qq/qq_platform.dart';
 import 'platform/kugou/kugou_platform.dart';
+import 'core/cache/artwork_cache.dart';
+import 'features/player/presentation/providers/lyrics_provider.dart';
 import 'platform/bilibili/bilibili_platform.dart';
 
 ProviderContainer? _playbackContainer;
+QmlCoreAdapter? _qmlCore;
 final Completer<void> _coreReady = Completer<void>();
 bool _phoneUiCreated = false;
 
 void _showPhoneUi() {
+  if (Platform.environment['MCONNECT_SILICA_CORE'] == '1') return;
   if (_phoneUiCreated) return;
   _phoneUiCreated = true;
   DiagnosticsService.instance.startUiHeartbeat();
@@ -40,7 +47,8 @@ void _showPhoneUi() {
   );
 }
 
-void main(List<String> args) => _startMconnect(background: args.contains('--background'));
+void main(List<String> args) =>
+    _startMconnect(background: args.contains('--background'));
 
 Future<void> _startMconnect({required bool background}) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -146,8 +154,38 @@ Future<void> _startMconnect({required bool background}) async {
         observers: [WidgetBridgeObserver()],
       );
       await _playbackContainer!.read(authProvider.notifier).init();
+      if (Platform.environment['MCONNECT_SILICA_CORE'] == '1') {
+        SessionExpiryReporter.handler = (platform) {
+          unawaited(
+            _playbackContainer!
+                .read(authProvider.notifier)
+                .handleSessionExpired(platform),
+          );
+        };
+      }
       // The shared notifier restores the queue and registers MPRIS without a UI.
       _playbackContainer!.read(playerProvider);
+      // Keep lyrics ready for offline use even if the lyrics page is never opened.
+      _playbackContainer!.listen(
+        lyricsProvider,
+        (_, _) {},
+        fireImmediately: true,
+      );
+      _playbackContainer!.listen(
+        playerProvider.select((state) => state.currentSong?.coverUrl),
+        (_, url) {
+          if (url != null && url.isNotEmpty) {
+            unawaited(
+              ArtworkCache.instance
+                  .get(url)
+                  .then<void>((_) {}, onError: (Object _) {}),
+            );
+          }
+        },
+        fireImmediately: true,
+      );
+      _qmlCore = QmlCoreAdapter(_playbackContainer!);
+      await _qmlCore!.start();
       _coreReady.complete();
       if (!background) _showPhoneUi();
       debugPrint('Mconnect playback core ready; background=$background');

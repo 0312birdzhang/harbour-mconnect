@@ -1,8 +1,9 @@
 #include <gst/gst.h>
+#include "sailfish_audio.h"
 #include <algorithm>
 #include <string>
 
-// Small C ABI consumed through Dart FFI. No Flutter platform plugin or GTK.
+// Shared C ABI for the native player and the transitional FFI caller.
 struct Audio {
   GstElement* player = nullptr;
   GstElement* equalizer = nullptr;

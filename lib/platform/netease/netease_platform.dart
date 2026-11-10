@@ -16,13 +16,117 @@ import '../../models/recommendation_source.dart';
 import '../base/music_platform.dart';
 import '../../core/storage/session_storage.dart';
 import 'netease_api.dart';
+import '../../sailfish/native_platforms.dart';
 import 'netease_endpoints.dart';
 
 class NeteasePlatform extends MusicPlatform {
   final NeteaseApi _api;
   User? _currentUser;
+  int _accountEpoch = 0;
+  String? _nativeQrKey;
+  int _nativeQrEpoch = -1;
 
-  NeteasePlatform({NeteaseApi? api}) : _api = api ?? NeteaseApi();
+  final NativePlatformClient? _native;
+  NeteasePlatform({NeteaseApi? api, NativePlatformClient? nativeClient})
+    : _api = api ?? NeteaseApi(),
+      _native = nativeClient ?? NativePlatformClient.forCurrentProcess();
+
+  Future<T> _nativeSession<T extends NativeSessionResponse>(
+    Future<T> Function(String) request,
+  ) async {
+    final cookie = _api.cookie ?? '';
+    try {
+      final result = await request(cookie);
+      if (_api.cookie == cookie && result.cookie != null) {
+        _api.restoreCookie(result.cookie!);
+      }
+      return result;
+    } on LoginExpiredException {
+      if (_api.cookie == cookie) {
+        SessionExpiryReporter.report(platformType);
+      }
+      rethrow;
+    }
+  }
+
+  Future<NativeNeteaseResult> _nativeSearch(
+    String query,
+    int page,
+    int limit,
+    bool playlists,
+  ) => _nativeSession(
+    (cookie) => _native!.searchNetease(
+      query,
+      page: page,
+      limit: limit,
+      playlists: playlists,
+      cookie: cookie,
+    ),
+  );
+  Future<NativeNeteaseContent> _nativeContent(
+    String operation,
+    String id, {
+    int page = 1,
+    int limit = 1000,
+  }) => _nativeSession(
+    (cookie) => _native!.contentNetease(
+      operation,
+      id,
+      page: page,
+      limit: limit,
+      cookie: cookie,
+    ),
+  );
+
+  Future<NativeNeteaseCatalog> _nativeCatalog(
+    String operation,
+    String id, {
+    int offset = 0,
+    int limit = 100,
+  }) => _nativeSession(
+    (cookie) => _native!.catalogNetease(
+      operation,
+      id,
+      offset: offset,
+      limit: limit,
+      cookie: cookie,
+    ),
+  );
+
+  Future<NativeNeteaseAccount> _nativeAccount(
+    String operation, [
+    Map<String, dynamic> arguments = const {},
+  ]) async {
+    final cookie = _api.cookie ?? '';
+    final epoch = _accountEpoch;
+    try {
+      final result = await _native!.accountNetease(
+        operation,
+        arguments,
+        cookie: cookie,
+      );
+      if (_accountEpoch != epoch || _api.cookie != cookie) {
+        throw RequestCancelledException();
+      }
+      if (result.cookie != null) _api.restoreCookie(result.cookie!);
+      if (operation == 'qrKey' && result.ok) {
+        _nativeQrKey = result.qrKey;
+        _nativeQrEpoch = epoch;
+      }
+      if (result.ok &&
+          (operation == 'profile' ||
+              operation == 'phoneLogin' ||
+              (operation == 'qrCheck' && result.qrStatus == 'success'))) {
+        _currentUser = result.user;
+      }
+      return result;
+    } on LoginExpiredException {
+      if (_accountEpoch == epoch && _api.cookie == cookie) {
+        SessionExpiryReporter.report(platformType);
+      }
+      rethrow;
+    }
+  }
 
   NeteaseApi get api => _api;
 
@@ -74,6 +178,17 @@ class NeteasePlatform extends MusicPlatform {
 
   @override
   Future<QrLoginResult> getQrCode() async {
+    if (_native != null) {
+      _accountEpoch++;
+      final result = await _nativeAccount('qrKey');
+      if (!result.ok) {
+        throw ApiException(
+          message: result.message ?? '获取二维码失败',
+          code: ApiErrorCode.requestFailed,
+        );
+      }
+      return QrLoginResult(key: result.qrKey!, qrUrl: result.qrUrl);
+    }
     final keyRes = await _api.getQrKey();
     debugPrint('Netease QR key response: $keyRes');
     // API returns unikey in data: {"code": 200, "data": {"unikey": "..."}}
@@ -89,6 +204,33 @@ class NeteasePlatform extends MusicPlatform {
 
   @override
   Stream<QrLoginStatus> pollQrStatus(String key) async* {
+    if (_native != null) {
+      final epoch = _accountEpoch;
+      if (key != _nativeQrKey || _nativeQrEpoch != epoch) return;
+      while (_accountEpoch == epoch) {
+        await Future<void>.delayed(const Duration(seconds: 2));
+        if (_accountEpoch != epoch) return;
+        try {
+          final result = await _nativeAccount('qrCheck', {'key': key});
+          if (_accountEpoch != epoch) return;
+          final status = QrLoginStatus.values.byName(result.qrStatus!);
+          yield status;
+          if (const [
+            QrLoginStatus.success,
+            QrLoginStatus.expired,
+            QrLoginStatus.failed,
+          ].contains(status)) {
+            return;
+          }
+        } on RequestCancelledException {
+          return;
+        } catch (_) {
+          yield QrLoginStatus.failed;
+          return;
+        }
+      }
+      return;
+    }
     while (true) {
       await Future.delayed(const Duration(seconds: 2));
       try {
@@ -121,6 +263,14 @@ class NeteasePlatform extends MusicPlatform {
 
   @override
   Future<LoginResult> sendPhoneCode(String phone) async {
+    if (_native != null) {
+      try {
+        final result = await _nativeAccount('sms', {'phone': phone});
+        return LoginResult(success: result.ok, error: result.message);
+      } catch (e) {
+        return LoginResult(success: false, error: e.toString());
+      }
+    }
     try {
       final res = await _api.post(
         NeteaseEndpoints.smsCaptchaSent,
@@ -140,6 +290,23 @@ class NeteasePlatform extends MusicPlatform {
 
   @override
   Future<LoginResult> loginByPhone(String phone, String code) async {
+    if (_native != null) {
+      _accountEpoch++;
+      try {
+        final result = await _nativeAccount('phoneLogin', {
+          'phone': phone,
+          'code': code,
+        });
+        return LoginResult(
+          success: result.ok,
+          user: result.user,
+          cookie: result.ok ? _api.cookie : null,
+          error: result.message,
+        );
+      } catch (e) {
+        return LoginResult(success: false, error: e.toString());
+      }
+    }
     try {
       final res = await _api.post(
         NeteaseEndpoints.loginCellphone,
@@ -158,6 +325,14 @@ class NeteasePlatform extends MusicPlatform {
   }
 
   Future<void> _fetchUserInfo() async {
+    if (_native != null) {
+      try {
+        await _nativeAccount('profile');
+      } catch (e) {
+        debugPrint('Netease native profile unavailable: ${e.runtimeType}');
+      }
+      return;
+    }
     try {
       final res = await _api.getUserInfo();
       final profile = res['profile'];
@@ -182,6 +357,7 @@ class NeteasePlatform extends MusicPlatform {
 
   @override
   Future<void> logout() async {
+    _accountEpoch++;
     _currentUser = null;
     _api.setCookie('');
   }
@@ -199,11 +375,14 @@ class NeteasePlatform extends MusicPlatform {
 
   @override
   Future<void> restoreSession(SessionStorage storage) async {
+    final epoch = ++_accountEpoch;
     final cookie = await storage.loadCookie(platformType);
+    if (_accountEpoch != epoch) return;
     if (cookie != null && cookie.isNotEmpty) {
       _api.restoreCookie(cookie);
     }
     final user = await storage.loadUser(platformType);
+    if (_accountEpoch != epoch) return;
     if (user != null) {
       _currentUser = user;
     }
@@ -217,6 +396,9 @@ class NeteasePlatform extends MusicPlatform {
     int page = 1,
     int limit = 30,
   }) async {
+    if (_native != null) {
+      return (await _nativeSearch(keyword, page, limit, false)).songs;
+    }
     final res = await _api.search(keyword, page: page, limit: limit);
     final songs = res['result']?['songs'] as List<dynamic>?;
     if (songs == null) return [];
@@ -230,6 +412,9 @@ class NeteasePlatform extends MusicPlatform {
     int page = 1,
     int limit = 30,
   }) async {
+    if (_native != null) {
+      return (await _nativeSearch(keyword, page, limit, true)).playlists;
+    }
     try {
       final res = await _api.searchPlaylists(keyword, page: page, limit: limit);
       final playlists = res['result']?['playlists'] as List<dynamic>?;
@@ -260,10 +445,7 @@ class NeteasePlatform extends MusicPlatform {
         rawArtists
             ?.whereType<Map>()
             .map(
-              (a) => Artist(
-                id: '${a['id'] ?? ''}',
-                name: '${a['name'] ?? ''}',
-              ),
+              (a) => Artist(id: '${a['id'] ?? ''}', name: '${a['name'] ?? ''}'),
             )
             .toList() ??
         [];
@@ -329,6 +511,13 @@ class NeteasePlatform extends MusicPlatform {
   }) async {
     final level = _levelNameFor(quality);
     debugPrint('Netease getSongUrl: songId=$songId, level=$level');
+    if (_native != null) {
+      return (await _nativeCatalog(
+        'stream',
+        songId,
+        offset: quality.index,
+      )).url!;
+    }
     final res = await _api.getSongUrl(songId, level: level);
     debugPrint('Netease getSongUrl response keys: ${res.keys.toList()}');
     // `res['data']` 在"没有音源"时是**空数组**而不是 null：直接 `?.first` 会抛
@@ -386,6 +575,9 @@ class NeteasePlatform extends MusicPlatform {
 
   @override
   Future<List<AudioQuality>> getAvailableQualities(String songId) async {
+    if (_native != null) {
+      return (await _nativeCatalog('qualities', songId)).qualities;
+    }
     final res = await _api.getSongUrl(songId, level: 'jymaster');
     final data = (res['data'] as List<dynamic>?)?.first;
     if (data == null) return [];
@@ -479,6 +671,7 @@ class NeteasePlatform extends MusicPlatform {
   /// `romalrc` is plain LRC. See `docs/netease-lyric-shapes.md`.
   @override
   Future<LyricsBundle?> getLyricsBundle(String songId) async {
+    if (_native != null) return (await _nativeCatalog('lyrics', songId)).lyrics;
     try {
       debugPrint('Netease getLyrics: songId=$songId');
       final res = await _api.getLyric(songId);
@@ -521,6 +714,13 @@ class NeteasePlatform extends MusicPlatform {
   @override
   Future<List<Playlist>> getUserPlaylists() async {
     if (_currentUser == null) return [];
+    if (_native != null) {
+      return (await _nativeCatalog(
+        'userPlaylists',
+        _currentUser!.id,
+        limit: 30,
+      )).playlists;
+    }
     final res = await _api.getUserPlaylist(_currentUser!.id);
     final playlists = res['playlist'] as List<dynamic>?;
     if (playlists == null) return [];
@@ -530,6 +730,9 @@ class NeteasePlatform extends MusicPlatform {
 
   @override
   Future<List<Song>> getPlaylistDetail(String playlistId) async {
+    if (_native != null) {
+      return (await _nativeCatalog('playlist', playlistId)).songs;
+    }
     final res = await _api.getPlaylistDetail(playlistId);
     final playlist = res['playlist'];
     final tracks = playlist?['tracks'] as List<dynamic>? ?? const [];
@@ -569,6 +772,12 @@ class NeteasePlatform extends MusicPlatform {
   @override
   Future<bool> likeSong(String songId, {bool like = true}) async {
     try {
+      if (_native != null) {
+        return (await _nativeAccount('like', {
+          'id': songId,
+          'enabled': like,
+        })).ok;
+      }
       await _api.likeSong(songId, like: like);
       return true;
     } catch (e) {
@@ -580,6 +789,12 @@ class NeteasePlatform extends MusicPlatform {
   @override
   Future<bool> addSongToPlaylist(String playlistId, Song song) async {
     try {
+      if (_native != null) {
+        return (await _nativeAccount('addTrack', {
+          'id': playlistId,
+          'songId': song.id,
+        })).ok;
+      }
       final res = await _api.manipulatePlaylistTracks(
         playlistId: playlistId,
         trackIds: [song.id],
@@ -595,6 +810,12 @@ class NeteasePlatform extends MusicPlatform {
   @override
   Future<bool> removeSongFromPlaylist(String playlistId, Song song) async {
     try {
+      if (_native != null) {
+        return (await _nativeAccount('removeTrack', {
+          'id': playlistId,
+          'songId': song.id,
+        })).ok;
+      }
       // Same endpoint as add, `op: 'del'` — the endpoint's own name and comment
       // ("歌单内增删歌曲") say delete is the intended counterpart.
       final res = await _api.manipulatePlaylistTracks(
@@ -606,7 +827,11 @@ class NeteasePlatform extends MusicPlatform {
         DiagnosticsService.instance.record(
           'netease',
           'remove_song_rejected',
-          data: {'playlist_id': playlistId, 'song_id': song.id, 'code': res['code']},
+          data: {
+            'playlist_id': playlistId,
+            'song_id': song.id,
+            'code': res['code'],
+          },
         );
       }
       return res['code'] == 200;
@@ -619,12 +844,19 @@ class NeteasePlatform extends MusicPlatform {
   @override
   Future<bool> deletePlaylist(String playlistId) async {
     try {
+      if (_native != null) {
+        return (await _nativeAccount('delete', {'id': playlistId})).ok;
+      }
       final res = await _api.deletePlaylist(playlistId);
       if (res['code'] != 200) {
         DiagnosticsService.instance.record(
           'netease',
           'delete_playlist_rejected',
-          data: {'playlist_id': playlistId, 'code': res['code'], 'message': res['message']},
+          data: {
+            'playlist_id': playlistId,
+            'code': res['code'],
+            'message': res['message'],
+          },
         );
       }
       return res['code'] == 200;
@@ -642,12 +874,22 @@ class NeteasePlatform extends MusicPlatform {
   @override
   Future<bool> renamePlaylist(String playlistId, String newName) async {
     try {
+      if (_native != null) {
+        return (await _nativeAccount('rename', {
+          'id': playlistId,
+          'name': newName,
+        })).ok;
+      }
       final res = await _api.renamePlaylist(playlistId, newName);
       if (res['code'] != 200) {
         DiagnosticsService.instance.record(
           'netease',
           'rename_playlist_rejected',
-          data: {'playlist_id': playlistId, 'code': res['code'], 'message': res['message']},
+          data: {
+            'playlist_id': playlistId,
+            'code': res['code'],
+            'message': res['message'],
+          },
         );
       }
       return res['code'] == 200;
@@ -665,6 +907,9 @@ class NeteasePlatform extends MusicPlatform {
   @override
   Future<Playlist?> createPlaylist(String name) async {
     try {
+      if (_native != null) {
+        return (await _nativeAccount('create', {'name': name})).playlist;
+      }
       final res = await _api.createPlaylist(name);
       final playlist = res['playlist'];
       if (res['code'] == 200 && playlist != null) {
@@ -680,6 +925,12 @@ class NeteasePlatform extends MusicPlatform {
   @override
   Future<bool> collectPlaylist(String playlistId, {bool collect = true}) async {
     try {
+      if (_native != null) {
+        return (await _nativeAccount('collect', {
+          'id': playlistId,
+          'enabled': collect,
+        })).ok;
+      }
       final res = await _api.subscribePlaylist(playlistId, subscribe: collect);
       return res['code'] == 200;
     } catch (e) {
@@ -692,6 +943,7 @@ class NeteasePlatform extends MusicPlatform {
 
   @override
   Future<List<Song>> getDailyRecommendations() async {
+    if (_native != null) return (await _nativeCatalog('daily', '0')).songs;
     try {
       final res = await _api.getRecommendSongs();
       final songs = res['data']?['dailySongs'] as List<dynamic>?;
@@ -726,6 +978,9 @@ class NeteasePlatform extends MusicPlatform {
   /// 附带 50 首热门）。两条都"应答正常但无该艺人"时返回 null，而不是编造。
   @override
   Future<Artist?> getArtistDetail(String artistId) async {
+    if (_native != null) {
+      return (await _nativeContent("artist", artistId)).artist;
+    }
     Object? firstError;
     var answered = false;
 
@@ -788,6 +1043,13 @@ class NeteasePlatform extends MusicPlatform {
     int limit = 50,
   }) async {
     if (limit <= 0) return const [];
+    if (_native != null) {
+      return (await _nativeContent(
+        "artistSongs",
+        artistId,
+        limit: limit,
+      )).songs;
+    }
     Object? firstError;
     var answered = false;
 
@@ -831,6 +1093,14 @@ class NeteasePlatform extends MusicPlatform {
     int limit = 30,
   }) async {
     if (limit <= 0) return const [];
+    if (_native != null) {
+      return (await _nativeContent(
+        "artistAlbums",
+        artistId,
+        page: page,
+        limit: limit,
+      )).albums;
+    }
     final offset = (page - 1).clamp(0, 10000) * limit;
     try {
       final res = await _api.getArtistAlbums(
@@ -887,6 +1157,9 @@ class NeteasePlatform extends MusicPlatform {
 
   @override
   Future<Album?> getAlbumDetail(String albumId) async {
+    if (_native != null) {
+      return (await _nativeContent("album", albumId)).album;
+    }
     try {
       final res = await _api.getAlbumDetail(albumId);
       final album = res['album'];
@@ -899,6 +1172,9 @@ class NeteasePlatform extends MusicPlatform {
 
   @override
   Future<List<Song>> getAlbumSongs(String albumId) async {
+    if (_native != null) {
+      return (await _nativeContent("albumSongs", albumId)).songs;
+    }
     try {
       final res = await _api.getAlbumDetail(albumId);
       // 实测曲目在**顶层** songs（`album.songs` 是空数组，probe 7d）。
@@ -909,9 +1185,7 @@ class NeteasePlatform extends MusicPlatform {
       // 才能保证 UI 上"第 N 首"这个承诺成立。
       final allNumbered = parsed.every((s) => s.trackNumber != null);
       if (!allNumbered) return parsed;
-      parsed.sort(
-        (a, b) => (a.trackNumber ?? 0).compareTo(b.trackNumber ?? 0),
-      );
+      parsed.sort((a, b) => (a.trackNumber ?? 0).compareTo(b.trackNumber ?? 0));
       return parsed;
     } on Object catch (e) {
       throw apiExceptionOf(e);
@@ -943,6 +1217,14 @@ class NeteasePlatform extends MusicPlatform {
         platformName,
         details: '新歌速递不提供港台地区（areaId 6/14/60 实测均返回空）',
       );
+    }
+
+    if (_native != null) {
+      return (await _nativeCatalog(
+        'newSongs',
+        '$areaId',
+        limit: limit.clamp(1, 10000),
+      )).songs;
     }
 
     try {
@@ -987,6 +1269,9 @@ class NeteasePlatform extends MusicPlatform {
 
   @override
   Future<List<Toplist>> getToplists() async {
+    if (_native != null) {
+      return (await _nativeCatalog('toplists', '0')).toplists;
+    }
     try {
       final res = await _api.getToplists();
       final list = res['list'];
@@ -1024,6 +1309,14 @@ class NeteasePlatform extends MusicPlatform {
     if (num <= 0) return const [];
     final start = offset < 0 ? 0 : offset;
     final wanted = start + num;
+    if (_native != null) {
+      return (await _nativeCatalog(
+        'ranked',
+        toplistId,
+        offset: start,
+        limit: num,
+      )).ranked;
+    }
 
     try {
       // `n` 实测就是"返回榜单前 n 首"（probe 7g：n=3 的歌名/id 序列与完整榜单
@@ -1051,9 +1344,7 @@ class NeteasePlatform extends MusicPlatform {
             .toList(growable: false);
         for (var i = 0; i < missingIds.length; i += 200) {
           final end = (i + 200).clamp(0, missingIds.length);
-          final detail = await _api.getSongDetails(
-            missingIds.sublist(i, end),
-          );
+          final detail = await _api.getSongDetails(missingIds.sublist(i, end));
           final detailSongs = detail['songs'] as List<dynamic>? ?? const [];
           songs.addAll(detailSongs.map(_parseSong));
         }
@@ -1076,6 +1367,7 @@ class NeteasePlatform extends MusicPlatform {
   @override
   Future<VipLevel> getVipStatus() async {
     try {
+      if (_native != null) return (await _nativeAccount('vip')).vipLevel;
       final res = await _api.getUserInfo();
       final profile = res['profile'];
       if (profile == null) return VipLevel.free;
@@ -1095,6 +1387,10 @@ class NeteasePlatform extends MusicPlatform {
   Future<Playlist?> parseShareLink(String url) async {
     final id = _extractPlaylistId(url);
     if (id == null) return null;
+    if (_native != null) {
+      final rows = (await _nativeCatalog('playlistInfo', id)).playlists;
+      return rows.isEmpty ? null : rows.first;
+    }
     try {
       final detail = await _api.getPlaylistDetail(id);
       final p = detail['playlist'];

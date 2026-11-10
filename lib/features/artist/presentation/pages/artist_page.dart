@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/widgets/cached_artwork_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -289,7 +289,7 @@ class _Avatar extends StatelessWidget {
       child: ClipOval(
         child: url == null || url!.isEmpty
             ? placeholder
-            : CachedNetworkImage(
+            : CachedArtworkImage(
                 imageUrl: url!,
                 width: 96,
                 height: 96,
@@ -337,7 +337,7 @@ class _AlbumCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               child: album.coverUrl == null || album.coverUrl!.isEmpty
                   ? placeholder
-                  : CachedNetworkImage(
+                  : CachedArtworkImage(
                       imageUrl: album.coverUrl!,
                       height: 110,
                       width: 110,

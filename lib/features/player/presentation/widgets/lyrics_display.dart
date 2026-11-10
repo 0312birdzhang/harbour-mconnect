@@ -512,7 +512,7 @@ class _PlainLyricsLine extends StatelessWidget {
       onTap: onTap,
       child: AnimatedDefaultTextStyle(
         duration: const Duration(milliseconds: 200),
-        style: TextStyle(
+        style: DefaultTextStyle.of(context).style.copyWith(
           // 默认（typography 为默认值时）与改动前的硬编码 20/16 完全一致。
           fontSize: typography.mainSize(current: isCurrentLine),
           fontWeight: isCurrentLine ? FontWeight.bold : FontWeight.normal,

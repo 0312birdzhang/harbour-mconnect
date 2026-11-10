@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/widgets/cached_artwork_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -257,7 +257,7 @@ class _NewSongTile extends ConsumerWidget {
         borderRadius: BorderRadius.circular(4),
         child: song.coverUrl == null || song.coverUrl!.isEmpty
             ? placeholder
-            : CachedNetworkImage(
+            : CachedArtworkImage(
                 imageUrl: song.coverUrl!,
                 width: 48,
                 height: 48,

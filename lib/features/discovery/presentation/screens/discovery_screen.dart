@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/platform_accent.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/widgets/cached_artwork_image.dart';
 import '../../../../core/widgets/async_state_view.dart';
 import '../../../../models/platform_type.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -251,7 +251,7 @@ class _RecommendationGrid extends ConsumerWidget {
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: song.coverUrl != null
-                      ? CachedNetworkImage(
+                      ? CachedArtworkImage(
                           imageUrl: song.coverUrl!,
                           fit: BoxFit.cover,
                           width: double.infinity,

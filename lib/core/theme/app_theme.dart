@@ -5,7 +5,9 @@ class AppTheme {
 
   static const defaultSeedColor = Color(0xFFE91E63);
   static const systemFont = 'Sail Sans Pro Light';
-  static const systemFontFallback = ['SailfishCJK', 'SailfishArabic'];
+  static const systemFontFallback = [
+    'SailfishCJK', 'SailfishArabic', 'SailfishEmoji', 'SailfishSymbols',
+  ];
 
   static ThemeData light({Color seedColor = defaultSeedColor}) {
     final colorScheme = ColorScheme.fromSeed(

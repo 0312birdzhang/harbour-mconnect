@@ -47,7 +47,15 @@ class PlayedLyricsText extends StatelessWidget {
   }
 
   Widget _build(int played) {
-    final count = played.clamp(0, text.length);
+    // Timing offsets use UTF-16, but a colour span must not split a grapheme
+    // (surrogate pairs, combining marks or a joined emoji).
+    final requested = played.clamp(0, text.length);
+    var count = 0;
+    for (final character in text.characters) {
+      final next = count + character.length;
+      if (next > requested) break;
+      count = next;
+    }
     if (count <= 0) {
       return Text(
         text,
@@ -152,7 +160,7 @@ class WordByWordLine extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           DefaultTextStyle(
-            style: TextStyle(
+            style: DefaultTextStyle.of(context).style.copyWith(
               fontSize: typography.fontSize + 4,
               fontWeight: FontWeight.bold,
             ),

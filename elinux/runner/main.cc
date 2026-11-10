@@ -51,6 +51,10 @@ bool Forward(GDBusConnection* bus, bool background) {
 }
 
 int main(int argc, char** argv) {
+  if (!getenv("MCONNECT_SILICA_CORE")) {
+    execl("/usr/bin/harbour-mconnect-silica", "harbour-mconnect-silica", static_cast<char*>(nullptr));
+    return 1;
+  }
   if (sqlite3_initialize() != SQLITE_OK) return 1;
   FlutterEmbedderOptions options;
   if (!options.Parse(argc, argv)) return 1;
@@ -67,6 +71,7 @@ int main(int argc, char** argv) {
     g_object_unref(bus); close(lock); return ok ? 0 : 1;
   }
   Host host;
+  const bool silica_core = getenv("MCONNECT_SILICA_CORE") != nullptr;
   const char* xml = "<node><interface name='org.sailfishos.Mconnect'>"
       "<method name='Show'/><method name='EnsurePlayback'/></interface></node>";
   GDBusNodeInfo* info = g_dbus_node_info_new_for_xml(xml, nullptr);
@@ -107,13 +112,21 @@ int main(int argc, char** argv) {
   if (options.IsBackground())
     fprintf(stderr, "Mconnect host background pid=%d phoneWindow=unmapped\n", getpid());
   else host.ui_requested = true;
-  StartSailfishCover(bundle.c_str());
+  if (!silica_core) StartSailfishCover(bundle.c_str());
   signal(SIGTERM, Stop); signal(SIGINT, Stop);
   int result = 0;
   while (!stopping) {
     PollSailfishCover();
     while (g_main_context_iteration(nullptr, false)) {}
     if (host.show) {
+      if (silica_core) {
+        g_dbus_connection_call(bus, "org.sailfishos.Mconnect.Silica",
+            "/org/sailfishos/Mconnect/Silica", "org.sailfishos.Mconnect.Silica",
+            "Show", nullptr, nullptr, G_DBUS_CALL_FLAGS_NO_AUTO_START,
+            1500, nullptr, nullptr, nullptr);
+        host.show = false;
+        continue;
+      }
       RaiseSailfishPhone();
       fprintf(stderr, "Mconnect host phone raised pid=%d\n", getpid());
       const bool first_ui = !host.ui_requested;

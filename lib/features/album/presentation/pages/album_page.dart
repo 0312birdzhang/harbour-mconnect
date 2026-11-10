@@ -1,4 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../core/widgets/cached_artwork_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -399,7 +399,7 @@ class _AlbumCover extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         child: coverUrl == null || coverUrl!.isEmpty
             ? placeholder
-            : CachedNetworkImage(
+            : CachedArtworkImage(
                 imageUrl: coverUrl!,
                 width: size,
                 height: size,

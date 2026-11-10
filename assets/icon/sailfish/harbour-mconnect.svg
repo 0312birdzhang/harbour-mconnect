@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="172" height="172" viewBox="0 0 172 172">
+  <title>Mconnect</title>
+  <desc>Sailfish launcher icon: asymmetric circular corners and a white M with a play symbol.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#31d2be"/>
+      <stop offset="1" stop-color="#1676bd"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#background)" d="M86 .6H171.4V86A85.4 85.4 0 0 1 86 171.4H.6V86A85.4 85.4 0 0 1 86 .6Z"/>
+  <path fill="#fff" d="M37 121V51H52L86 91L120 51H135V121H120V75L86 114L52 75V121Z"/>
+  <path fill="#fff" d="M78 121V144L101 132.5Z"/>
+</svg>

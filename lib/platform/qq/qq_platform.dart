@@ -17,16 +17,83 @@ import '../../core/network/platform_http.dart';
 import '../../core/diagnostics/diagnostics_service.dart';
 import '../../core/storage/session_storage.dart';
 import 'qq_api.dart';
+import '../../sailfish/native_platforms.dart';
 import 'qq_endpoints.dart';
 import 'qq_toplist_ids.dart';
 
 class QqPlatform extends MusicPlatform {
   final QqApi _api;
   User? _currentUser;
+  final NativePlatformClient? _native;
+  int _nativeEpoch = 0;
+  String? _nativeQrKey;
+  int _nativeQrEpoch = -1;
 
-  QqPlatform({QqApi? api}) : _api = api ?? QqApi();
+  QqPlatform({QqApi? api, NativePlatformClient? nativeClient})
+    : _api = api ?? QqApi(),
+      _native = nativeClient ?? NativePlatformClient.forCurrentProcess();
+  Future<NativeQqResult> _nativeCatalog(
+    String operation,
+    Map<String, dynamic> arguments,
+  ) async {
+    final cookie = _api.cookie ?? '', epoch = _nativeEpoch;
+    try {
+      final result = await _native!.qqCatalog(
+        operation,
+        arguments,
+        cookie: cookie,
+      );
+      if (epoch != _nativeEpoch || (_api.cookie ?? '') != cookie) {
+        throw RequestCancelledException();
+      }
+      if ((_api.cookie ?? '') == cookie && result.cookie != null) {
+        _api.restoreCookie(result.cookie!);
+      }
+      return result;
+    } on LoginExpiredException {
+      if (epoch == _nativeEpoch && (_api.cookie ?? '') == cookie) {
+        SessionExpiryReporter.report(platformType);
+      }
+      rethrow;
+    }
+  }
 
   QqApi get api => _api;
+
+  Future<NativeQqAccount> _nativeAccount(
+    String operation,
+    Map<String, dynamic> arguments,
+  ) async {
+    final epoch = _nativeEpoch, cookie = _api.cookie ?? '';
+    final result = await _native!.qqAccount(
+      operation,
+      arguments,
+      cookie: cookie,
+    );
+    if (epoch != _nativeEpoch || (_api.cookie ?? '') != cookie) {
+      if (result.qrKey != null) _cancelNativeQr(result.qrKey!);
+      throw RequestCancelledException();
+    }
+    if (result.cookie != null) _api.restoreCookie(result.cookie!);
+    return result;
+  }
+
+  void _retireNativeQr() {
+    final key = _nativeQrKey;
+    _nativeQrKey = null;
+    _nativeQrEpoch = -1;
+    if (_native != null && key != null) {
+      _cancelNativeQr(key);
+    }
+  }
+
+  void _cancelNativeQr(String key) {
+    unawaited(
+      _native!
+          .qqAccount('qrCancel', {'key': key}, cookie: '')
+          .then<void>((_) {}, onError: (Object _) {}),
+    );
+  }
 
   @override
   PlatformType get platformType => PlatformType.qq;
@@ -60,6 +127,14 @@ class QqPlatform extends MusicPlatform {
 
   @override
   Future<QrLoginResult> getQrCode() async {
+    _nativeEpoch++;
+    _retireNativeQr();
+    if (_native != null) {
+      final result = await _nativeAccount('qrKey', {});
+      _nativeQrKey = result.qrKey;
+      _nativeQrEpoch = _nativeEpoch;
+      return QrLoginResult(key: result.qrKey!, qrBytes: result.qrBytes);
+    }
     final qrBytes = await _api.getQrImage();
     return QrLoginResult(
       key: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -69,6 +144,10 @@ class QqPlatform extends MusicPlatform {
 
   @override
   Stream<QrLoginStatus> pollQrStatus(String key) async* {
+    if (_native != null) {
+      yield* _pollNativeQrStatus(key);
+      return;
+    }
     const maxAttempts = 150; // 5 minutes
     for (var i = 0; i < maxAttempts; i++) {
       await Future.delayed(const Duration(seconds: 2));
@@ -177,6 +256,49 @@ class QqPlatform extends MusicPlatform {
     yield QrLoginStatus.failed;
   }
 
+  Stream<QrLoginStatus> _pollNativeQrStatus(String key) async* {
+    final epoch = _nativeQrEpoch;
+    for (var attempt = 0; attempt < 150; attempt++) {
+      if (key != _nativeQrKey || epoch != _nativeEpoch) return;
+      await Future<void>.delayed(const Duration(seconds: 2));
+      if (key != _nativeQrKey || epoch != _nativeEpoch) return;
+      try {
+        final result = await _nativeAccount('qrCheck', {'key': key});
+        switch (result.qrStatus) {
+          case 'waiting':
+            yield QrLoginStatus.waiting;
+          case 'scanned':
+            yield QrLoginStatus.scanned;
+          case 'success':
+            _currentUser = result.user;
+            _retireNativeQr();
+            yield QrLoginStatus.success;
+            return;
+          case 'expired':
+            _retireNativeQr();
+            yield QrLoginStatus.expired;
+            return;
+          default:
+            _retireNativeQr();
+            yield QrLoginStatus.failed;
+            return;
+        }
+      } on RequestCancelledException {
+        if (key == _nativeQrKey) _retireNativeQr();
+        return;
+      } catch (_) {
+        if (key != _nativeQrKey || epoch != _nativeEpoch) return;
+        _retireNativeQr();
+        yield QrLoginStatus.failed;
+        return;
+      }
+    }
+    if (key == _nativeQrKey && epoch == _nativeEpoch) {
+      _retireNativeQr();
+      yield QrLoginStatus.failed;
+    }
+  }
+
   @override
   Future<LoginResult> sendPhoneCode(String phone) async {
     return const LoginResult(
@@ -192,7 +314,13 @@ class QqPlatform extends MusicPlatform {
 
   @override
   Future<User?> getUserInfo() async {
-    _currentUser = await _fetchUserInfo() ?? _currentUser;
+    final epoch = _nativeEpoch, cookie = _api.cookie ?? '';
+    final user = await _fetchUserInfo();
+    if (_native != null &&
+        (epoch != _nativeEpoch || (_api.cookie ?? '') != cookie)) {
+      throw RequestCancelledException();
+    }
+    _currentUser = user ?? _currentUser;
     return _currentUser;
   }
 
@@ -201,8 +329,13 @@ class QqPlatform extends MusicPlatform {
     final uin = _extractUinFromCookie(cookie);
     if (uin == null || uin.isEmpty) return _currentUser;
     try {
+      if (_native != null) {
+        return (await _nativeCatalog('profile', {'id': uin})).user;
+      }
       final userRes = await _api.getUserInfo(uin);
       return _parseUserFromProfile(userRes, fallbackUin: uin);
+    } on RequestCancelledException {
+      rethrow;
     } catch (e) {
       debugPrint('QQ fetch user profile error: $e');
       return _currentUser ??
@@ -236,9 +369,8 @@ class QqPlatform extends MusicPlatform {
   /// so it never matched a real response: the URL stayed null, the OAuth
   /// completion step was skipped entirely, and QR login could never succeed.
   @visibleForTesting
-  static String? parseQrRedirectUrlForTest(String raw) => RegExp(
-    r"ptui[Cc]B\('[^']*','[^']*','([^']+)'",
-  ).firstMatch(raw)?.group(1);
+  static String? parseQrRedirectUrlForTest(String raw) =>
+      RegExp(r"ptui[Cc]B\('[^']*','[^']*','([^']+)'").firstMatch(raw)?.group(1);
 
   @visibleForTesting
   static String? extractUinFromCookieForTest(String cookie) {
@@ -333,6 +465,8 @@ class QqPlatform extends MusicPlatform {
 
   @override
   Future<void> logout() async {
+    _nativeEpoch++;
+    _retireNativeQr();
     _currentUser = null;
     _api.setCookie('');
   }
@@ -350,11 +484,15 @@ class QqPlatform extends MusicPlatform {
 
   @override
   Future<void> restoreSession(SessionStorage storage) async {
+    final epoch = ++_nativeEpoch;
+    _retireNativeQr();
     final cookie = await storage.loadCookie(platformType);
+    if (epoch != _nativeEpoch) return;
     if (cookie != null && cookie.isNotEmpty) {
       _api.restoreCookie(cookie);
     }
     final user = await storage.loadUser(platformType);
+    if (epoch != _nativeEpoch) return;
     if (user != null) {
       _currentUser = user;
     }
@@ -368,6 +506,13 @@ class QqPlatform extends MusicPlatform {
     int page = 1,
     int limit = 30,
   }) async {
+    if (_native != null) {
+      return (await _nativeCatalog('search', {
+        'query': keyword,
+        'page': page,
+        'limit': limit,
+      })).songs;
+    }
     final res = await _api.search(keyword, page: page, limit: limit);
     final searchData = res['req_0'];
     final body =
@@ -383,6 +528,13 @@ class QqPlatform extends MusicPlatform {
     int page = 1,
     int limit = 30,
   }) async {
+    if (_native != null) {
+      return (await _nativeCatalog('searchPlaylists', {
+        'query': keyword,
+        'page': page,
+        'limit': limit,
+      })).playlists;
+    }
     try {
       final res = await _api.searchPlaylists(keyword, page: page, limit: limit);
       final list =
@@ -408,7 +560,8 @@ class QqPlatform extends MusicPlatform {
           s['songid'],
         ]) ??
         '';
-    final songName = _firstText([s['name'], s['title'], s['songname'], s['songName']]) ?? '';
+    final songName =
+        _firstText([s['name'], s['title'], s['songname'], s['songName']]) ?? '';
     final singers = <Artist>[];
     final singerRows = s['singer'];
     if (singerRows is List) {
@@ -417,7 +570,10 @@ class QqPlatform extends MusicPlatform {
         final name = _firstText([singer['name'], singer['title']]);
         if (name == null) continue;
         singers.add(
-          Artist(id: _firstText([singer['mid'], singer['id'], name]) ?? name, name: name),
+          Artist(
+            id: _firstText([singer['mid'], singer['id'], name]) ?? name,
+            name: name,
+          ),
         );
       }
     }
@@ -430,11 +586,16 @@ class QqPlatform extends MusicPlatform {
       s['album_mid'],
     ]);
     final albumName =
-        _firstText([album['name'], album['title'], s['albumName'], s['albumname']]) ?? '';
-    final coverUrl =
-        (albumMid != null && albumMid.isNotEmpty
-            ? _albumCover(albumMid)
-            : _firstText([album['cover'], s['cover'], s['pic']]));
+        _firstText([
+          album['name'],
+          album['title'],
+          s['albumName'],
+          s['albumname'],
+        ]) ??
+        '';
+    final coverUrl = (albumMid != null && albumMid.isNotEmpty
+        ? _albumCover(albumMid)
+        : _firstText([album['cover'], s['cover'], s['pic']]));
 
     return Song(
       id: songId,
@@ -444,10 +605,7 @@ class QqPlatform extends MusicPlatform {
       album: albumName.isNotEmpty
           ? Album(id: albumMid ?? '', name: albumName, coverUrl: coverUrl)
           : null,
-      duration: Duration(
-        seconds:
-            _asInt(s['interval'] ?? s['duration']) ?? 0,
-      ),
+      duration: Duration(seconds: _asInt(s['interval'] ?? s['duration']) ?? 0),
       coverUrl: coverUrl,
     );
   }
@@ -459,6 +617,12 @@ class QqPlatform extends MusicPlatform {
     String songId, {
     AudioLevel quality = AudioLevel.low,
   }) async {
+    if (_native != null) {
+      return (await _nativeCatalog('stream', {
+        'id': songId,
+        'quality': quality.index,
+      })).url!;
+    }
     Map<String, dynamic> res;
     try {
       res = await _api.getSongUrl(songId, quality: quality);
@@ -484,6 +648,9 @@ class QqPlatform extends MusicPlatform {
 
   @override
   Future<List<AudioQuality>> getAvailableQualities(String songId) async {
+    if (_native != null) {
+      return (await _nativeCatalog('qualities', {'id': songId})).qualities;
+    }
     // QQ Music qualities are determined by membership
     return [
       const AudioQuality(level: AudioLevel.low, bitrate: 128000, format: 'mp3'),
@@ -524,6 +691,15 @@ class QqPlatform extends MusicPlatform {
 
   @override
   Future<String?> getLyrics(String songId) async {
+    if (_native != null) {
+      final bundle = await getLyricsBundle(songId);
+      final lrc = bundle?.lrc;
+      if (lrc == null || lrc.isEmpty) return null;
+      final translation = bundle?.translation;
+      return translation == null || translation.isEmpty
+          ? lrc
+          : '$lrc\n$translation';
+    }
     debugPrint(
       'QQ getLyrics: songId=$songId, hasCookie=${_api.cookie != null && _api.cookie!.isNotEmpty}',
     );
@@ -548,6 +724,9 @@ class QqPlatform extends MusicPlatform {
   @override
   Future<LyricsBundle?> getLyricsBundle(String songId) async {
     try {
+      if (_native != null) {
+        return (await _nativeCatalog('lyrics', {'id': songId})).lyrics;
+      }
       final tracks = await _api.getLyricTracks(songId);
       final qrc = await _readableQrcTrack(songId);
       final bundle = LyricsBundle(
@@ -597,6 +776,11 @@ class QqPlatform extends MusicPlatform {
   Future<List<Playlist>> getUserPlaylists() async {
     if (_currentUser == null) return [];
     try {
+      if (_native != null) {
+        return (await _nativeCatalog('userPlaylists', {
+          'id': _currentUser!.id,
+        })).playlists;
+      }
       final res = await _api.getUserPlaylists(_currentUser!.id);
       final plistlist =
           res['data']?['disslist'] as List<dynamic>? ??
@@ -612,6 +796,9 @@ class QqPlatform extends MusicPlatform {
   @override
   Future<List<Song>> getPlaylistDetail(String playlistId) async {
     try {
+      if (_native != null) {
+        return (await _nativeCatalog('playlist', {'id': playlistId})).songs;
+      }
       final songlist = await _loadPlaylistSongList(playlistId);
       if (songlist == null) return [];
       return songlist.map((s) => _parseSong(_songPayload(s))).toList();
@@ -624,6 +811,7 @@ class QqPlatform extends MusicPlatform {
   @override
   Future<List<Song>> getLikedSongs() async {
     try {
+      if (_native != null) return (await _nativeCatalog('liked', {})).songs;
       final res = await _api.getLikedSongs();
       final songlist = res['req_0']?['data']?['songlist'] as List<dynamic>?;
       if (songlist == null) return [];
@@ -637,6 +825,9 @@ class QqPlatform extends MusicPlatform {
   @override
   Future<bool> likeSong(String songId, {bool like = true}) async {
     try {
+      if (_native != null) {
+        return (await _nativeCatalog('like', {'id': songId, 'like': like})).ok;
+      }
       // songId is the song mid for QQ
       if (like) {
         await _api.likeSong(songId, songId);
@@ -653,6 +844,12 @@ class QqPlatform extends MusicPlatform {
   @override
   Future<bool> addSongToPlaylist(String playlistId, Song song) async {
     try {
+      if (_native != null) {
+        return (await _nativeCatalog('add', {
+          'id': playlistId,
+          'songId': song.id,
+        })).ok;
+      }
       final res = await _api.addSongToPlaylist(playlistId, song.id);
       // This used to `return true` unconditionally, so a rejected write showed up
       // in the UI as a success. QQ answers `code == 0` / `result == 100` on
@@ -683,6 +880,15 @@ class QqPlatform extends MusicPlatform {
   @override
   Future<Playlist?> createPlaylist(String name) async {
     try {
+      if (_native != null) {
+        final epoch = _nativeEpoch, cookie = _api.cookie ?? '';
+        final result = await _nativeCatalog('create', {'name': name});
+        final playlist = await _findCreatedPlaylistByDirId(result.dirId!, name);
+        if (epoch != _nativeEpoch || (_api.cookie ?? '') != cookie) {
+          throw RequestCancelledException();
+        }
+        return playlist;
+      }
       final res = await _api.createPlaylist(name);
       if (res['code'] == 0 || res['result'] == 100) {
         final id =
@@ -709,13 +915,20 @@ class QqPlatform extends MusicPlatform {
       );
       return null;
     } catch (e) {
-      DiagnosticsService.instance.recordError('qq.createPlaylist', e, StackTrace.current);
+      DiagnosticsService.instance.recordError(
+        'qq.createPlaylist',
+        e,
+        StackTrace.current,
+      );
       debugPrint('QQ createPlaylist error: $e');
       return null;
     }
   }
 
-  Future<Playlist?> _findCreatedPlaylistByDirId(String dirId, String name) async {
+  Future<Playlist?> _findCreatedPlaylistByDirId(
+    String dirId,
+    String name,
+  ) async {
     if (dirId.isEmpty || _currentUser == null) return null;
     final playlists = await getUserPlaylists();
     for (final playlist in playlists) {
@@ -732,6 +945,12 @@ class QqPlatform extends MusicPlatform {
   @override
   Future<bool> collectPlaylist(String playlistId, {bool collect = true}) async {
     try {
+      if (_native != null) {
+        return (await _nativeCatalog('collect', {
+          'id': playlistId,
+          'collect': collect,
+        })).ok;
+      }
       final res = await _api.collectPlaylist(playlistId, collect: collect);
       return res['code'] == 0 || res['result'] == 100;
     } catch (e) {
@@ -814,9 +1033,14 @@ class QqPlatform extends MusicPlatform {
   /// 「今日私享」 tracks, or an empty list when unavailable (any failure).
   Future<List<Song>> _personalisedDaily() async {
     try {
-      final playlistId = await _api
-          .getDailyPlaylistId()
-          .timeout(const Duration(seconds: 12), onTimeout: () => null);
+      final playlistId =
+          await (_native != null
+                  ? _nativeCatalog(
+                      'dailyId',
+                      {},
+                    ).then((result) => result.dailyId)
+                  : _api.getDailyPlaylistId())
+              .timeout(const Duration(seconds: 12), onTimeout: () => null);
       if (playlistId == null || playlistId.isEmpty) return const [];
       final songs = await getPlaylistDetail(playlistId);
       return songs.take(30).toList();
@@ -830,6 +1054,7 @@ class QqPlatform extends MusicPlatform {
 
   @override
   Future<List<Toplist>> getToplists() async {
+    if (_native != null) return (await _nativeCatalog('toplists', {})).charts;
     final res = await _api.getToplistCatalogue();
     final data = QqApi.moduleOf(res, 'toplist')['data'];
     if (data is! Map) return const [];
@@ -902,6 +1127,14 @@ class QqPlatform extends MusicPlatform {
   }) async {
     final topId = int.tryParse(toplistId);
     if (topId == null || num <= 0 || offset < 0) return const [];
+    if (_native != null) {
+      return (await _nativeCatalog('ranked', {
+        'id': toplistId,
+        'offset': offset,
+        'limit': num,
+        'period': period ?? '',
+      })).ranked;
+    }
     final wantsPeriod = period != null && period.isNotEmpty;
 
     if (wantsPeriod) {
@@ -927,10 +1160,7 @@ class QqPlatform extends MusicPlatform {
 
   /// The 热歌榜 as reported by QQ's own endpoint, up to [num] tracks
   /// (default: all 300).
-  Future<List<RankedSong>> getHotSongs({
-    int offset = 0,
-    int num = 300,
-  }) async {
+  Future<List<RankedSong>> getHotSongs({int offset = 0, int num = 300}) async {
     return getRankedSongs('${QqToplistIds.hot}', offset: offset, num: num);
   }
 
@@ -1087,6 +1317,9 @@ class QqPlatform extends MusicPlatform {
   @override
   Future<Artist?> getArtistDetail(String artistId) async {
     if (artistId.isEmpty) return null;
+    if (_native != null) {
+      return (await _nativeCatalog('artist', {'id': artistId})).artist;
+    }
     final profile = await _singerProfile(artistId);
     if (profile == null) return null;
     final info = _asMap(profile['getSingerInfo']);
@@ -1149,6 +1382,12 @@ class QqPlatform extends MusicPlatform {
     int limit = 50,
   }) async {
     if (artistId.isEmpty || limit <= 0) return const [];
+    if (_native != null) {
+      return (await _nativeCatalog('artistSongs', {
+        'id': artistId,
+        'limit': limit,
+      })).songs;
+    }
     final profile = await _singerProfile(artistId);
     final rows = profile?['getSongInfo'];
     if (rows is! List) return const [];
@@ -1171,6 +1410,13 @@ class QqPlatform extends MusicPlatform {
     int limit = 30,
   }) async {
     if (artistId.isEmpty || limit <= 0) return const [];
+    if (_native != null) {
+      return (await _nativeCatalog('artistAlbums', {
+        'id': artistId,
+        'page': page <= 1 ? 1 : page,
+        'limit': limit,
+      })).albums;
+    }
     final begin = (page <= 1 ? 0 : page - 1) * limit;
 
     try {
@@ -1251,6 +1497,9 @@ class QqPlatform extends MusicPlatform {
   @override
   Future<Album?> getAlbumDetail(String albumId) async {
     if (albumId.isEmpty) return null;
+    if (_native != null) {
+      return (await _nativeCatalog('album', {'id': albumId})).album;
+    }
     Map<String, dynamic> res;
     try {
       res = await _api.getAlbumInfo(albumId);
@@ -1266,6 +1515,9 @@ class QqPlatform extends MusicPlatform {
   @override
   Future<List<Song>> getAlbumSongs(String albumId) async {
     if (albumId.isEmpty) return const [];
+    if (_native != null) {
+      return (await _nativeCatalog('albumSongs', {'id': albumId})).songs;
+    }
     Map<String, dynamic> res;
     try {
       res = await _api.getAlbumInfo(albumId);
@@ -1287,6 +1539,12 @@ class QqPlatform extends MusicPlatform {
     NewSongRegion region = NewSongRegion.all,
   }) async {
     if (limit <= 0) return const [];
+    if (_native != null) {
+      return (await _nativeCatalog('newSongs', {
+        'id': '${_qqNewSongType(region)}',
+        'limit': limit,
+      })).songs;
+    }
     Map<String, dynamic> res;
     try {
       res = await _api.getNewSongs(type: _qqNewSongType(region));
@@ -1329,9 +1587,7 @@ class QqPlatform extends MusicPlatform {
       name: _firstText([row['albumName'], row['albumTranName']]) ?? '未知专辑',
       artistName: _firstText([row['singerName']]),
       coverUrl: mid.isEmpty ? null : _albumCover(mid),
-      releaseDate: DateTime.tryParse(
-        _firstText([row['publishDate']]) ?? '',
-      ),
+      releaseDate: DateTime.tryParse(_firstText([row['publishDate']]) ?? ''),
     );
   }
 
@@ -1342,8 +1598,8 @@ class QqPlatform extends MusicPlatform {
       id: mid,
       name: _firstText([row['name'], row['albumName']]) ?? '未知专辑',
       artistName: _firstText([row['singer']]),
-      coverUrl: _firstText([row['pic']]) ??
-          (mid.isEmpty ? null : _albumCover(mid)),
+      coverUrl:
+          _firstText([row['pic']]) ?? (mid.isEmpty ? null : _albumCover(mid)),
       releaseDate: DateTime.tryParse(_firstText([row['publish_date']]) ?? ''),
       songCount: _asInt(row['song_num']),
     );
@@ -1375,6 +1631,9 @@ class QqPlatform extends MusicPlatform {
   Future<VipLevel> getVipStatus() async {
     if (_currentUser == null) return VipLevel.free;
     try {
+      if (_native != null) {
+        return (await _nativeCatalog('vip', {'id': _currentUser!.id})).vipLevel;
+      }
       final res = await _api.getVipInfo(_currentUser!.id);
       final vipInfo = res['req_0']?['data'];
       if (vipInfo == null) return VipLevel.free;
@@ -1395,6 +1654,10 @@ class QqPlatform extends MusicPlatform {
     final id = _extractSharePlaylistId(url);
     if (id == null) return null;
     try {
+      if (_native != null) {
+        final result = await _nativeCatalog('playlistInfo', {'id': id});
+        return result.playlists.isEmpty ? null : result.playlists.first;
+      }
       final detail = await _loadPlaylistDetailWithFallback(id);
       final metadata = detail == null ? null : _extractPlaylistMetadata(detail);
       final songlist = detail == null ? null : _extractPlaylistSongList(detail);
@@ -1417,7 +1680,9 @@ class QqPlatform extends MusicPlatform {
               'title':
                   metadata['title'] ?? metadata['dissname'] ?? metadata['name'],
               'picurl':
-                  metadata['picurl'] ?? metadata['logo'] ?? metadata['coverurl'],
+                  metadata['picurl'] ??
+                  metadata['logo'] ??
+                  metadata['coverurl'],
             };
       return Playlist(
         id: id,

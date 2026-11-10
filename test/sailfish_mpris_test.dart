@@ -1,10 +1,28 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:dbus/dbus.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mconnect/sailfish/mpris.dart';
 import 'package:mconnect/features/player/data/playback_notification_service.dart';
 import 'package:mconnect/models/song.dart';
 import 'package:mconnect/models/platform_type.dart';
+
+class NativeArtworkMock extends DBusObject {
+  NativeArtworkMock()
+    : super(DBusObjectPath('/org/sailfishos/Mconnect/Artwork'));
+  final requested = Completer<String>();
+  @override
+  Future<DBusMethodResponse> handleMethodCall(DBusMethodCall call) async {
+    if (call.interface != 'org.sailfishos.Mconnect.Artwork' ||
+        call.name != 'MediaUrl') {
+      return DBusMethodErrorResponse.unknownMethod();
+    }
+    requested.complete((call.values.single as DBusString).value);
+    return DBusMethodSuccessResponse([
+      const DBusString('http://127.0.0.1:12345/private/native-artwork'),
+    ]);
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +39,9 @@ void main() {
       );
       final serviceBus = DBusClient(address);
       final remoteBus = DBusClient(address);
+      final nativeArtwork = NativeArtworkMock();
+      await remoteBus.registerObject(nativeArtwork);
+      await remoteBus.requestName('org.sailfishos.Mconnect.Silica');
       final service = SailfishMpris(busFactory: () => serviceBus);
       addTearDown(() async {
         service.detach();
@@ -30,7 +51,9 @@ void main() {
         await directory.delete(recursive: true);
       });
       var raises = 0;
-      service.onRaise = () async { raises++; };
+      service.onRaise = () async {
+        raises++;
+      };
       var plays = 0;
       var pauses = 0;
       var next = 0;
@@ -60,6 +83,7 @@ void main() {
         platform: PlatformType.netease,
         name: '测试歌曲',
         artists: [],
+        coverUrl: 'https://image.test/cover.png',
       );
       service.update(
         currentSong: song,
@@ -76,6 +100,14 @@ void main() {
         name: 'org.mpris.MediaPlayer2.harbour_mconnect',
         path: DBusObjectPath('/org/mpris/MediaPlayer2'),
       );
+      expect(
+        await nativeArtwork.requested.future.timeout(
+          const Duration(seconds: 3),
+        ),
+        song.coverUrl,
+      );
+      // Let the asynchronous metadata update finish after MediaUrl replies.
+      await Future<void>.delayed(const Duration(milliseconds: 20));
       final metadata = await object.getProperty(
         'org.mpris.MediaPlayer2.Player',
         'Metadata',
@@ -83,6 +115,10 @@ void main() {
       expect(
         metadata.asStringVariantDict()['xesam:title'],
         const DBusString('测试歌曲'),
+      );
+      expect(
+        metadata.asStringVariantDict()['mpris:artUrl'],
+        const DBusString('http://127.0.0.1:12345/private/native-artwork'),
       );
       expect(
         service.trackPath.value,

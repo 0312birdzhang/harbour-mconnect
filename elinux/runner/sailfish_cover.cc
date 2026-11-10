@@ -158,7 +158,6 @@ extern "C" __attribute__((visibility("default"))) wl_egl_window* wl_egl_window_c
  auto real=reinterpret_cast<wl_egl_window*(*)(wl_surface*,int,int)>(dlsym(RTLD_NEXT,"wl_egl_window_create"));return real(surface,w,h);
 }
 SailfishCoverModel::SailfishCoverModel(QObject* parent):QObject(parent),network_(new QNetworkAccessManager(this)) {
- auto* cache=new QNetworkDiskCache(network_);cache->setCacheDirectory(QStandardPaths::writableLocation(QStandardPaths::CacheLocation)+"/cover-art");cache->setMaximumCacheSize(20*1024*1024);network_->setCache(cache);
  actionService_=QString("org.sailfishos.coveraction.harbour_mconnect.pid%1.id1").arg(getpid());
  QDBusConnection::sessionBus().registerService(actionService_);
  QDBusConnection::sessionBus().registerObject("/"+QString(actionService_).replace('.','/'),this,QDBusConnection::ExportAllSlots);

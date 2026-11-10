@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
@@ -45,13 +46,10 @@ class RawLyrics {
   final LyricsBundle bundle;
   final LyricsSource source;
 
-  const RawLyrics({
-    required this.bundle,
-    this.source = LyricsSource.unknown,
-  });
+  const RawLyrics({required this.bundle, this.source = LyricsSource.unknown});
 }
 
-/// How long a cached lyrics row stays trustworthy before it is refetched.
+/// TTL used by explicit refresh/cleanup. Normal playback always prefers valid local lyrics.
 ///
 /// `LyricsCache.syncedAt` used to be a **write-only** field: a cached row was
 /// served forever, so a platform correcting its own lyrics (typos, fixed
@@ -82,10 +80,13 @@ Future<({String content, String format, int syncedAt})?> readCachedLyrics(
   AppDatabase? db,
 }) async {
   final target = db ?? database;
-  final row = await (target.select(target.lyricsCache)
-        ..where((t) => t.songId.equals(songId) & t.platform.equals(platform))
-        ..limit(1))
-      .getSingleOrNull();
+  final row =
+      await (target.select(target.lyricsCache)
+            ..where(
+              (t) => t.songId.equals(songId) & t.platform.equals(platform),
+            )
+            ..limit(1))
+          .getSingleOrNull();
   if (row == null || row.content.isEmpty) return null;
   return (content: row.content, format: row.format, syncedAt: row.syncedAt);
 }
@@ -139,7 +140,9 @@ final lyricsProvider = FutureProvider.autoDispose<LyricsDocument?>((ref) async {
   final song = ref.watch(playerProvider.select((s) => s.currentSong));
   if (song == null) return null;
 
-  debugPrint('LyricsProvider: fetching for ${song.name} (${song.platform.name}, id=${song.id})');
+  debugPrint(
+    'LyricsProvider: fetching for ${song.name} (${song.platform.name}, id=${song.id})',
+  );
 
   final localRawLyrics = song.platform == PlatformType.local
       ? ref.watch(localMusicProvider.select((s) => s.lyricsFor(song.id)))
@@ -147,7 +150,7 @@ final lyricsProvider = FutureProvider.autoDispose<LyricsDocument?>((ref) async {
 
   ({String content, String format})? cachedLyrics;
   int? cachedSyncedAt;
-  if (song.platform != PlatformType.local) {
+  {
     try {
       final cached = await readCachedLyrics(song.id, song.platform.name);
       if (cached != null) {
@@ -170,14 +173,12 @@ final lyricsProvider = FutureProvider.autoDispose<LyricsDocument?>((ref) async {
     cachedLyrics: cachedLyrics,
     cachedSyncedAt: cachedSyncedAt,
     platforms: PlatformRegistry.all,
-    writeCache: song.platform == PlatformType.local
-        ? null
-        : (raw, format) => database.lyricsCacheDao.cacheLyrics(
-            song.id,
-            song.platform.name,
-            raw,
-            format.name,
-          ),
+    writeCache: (raw, format) => database.lyricsCacheDao.cacheLyrics(
+      song.id,
+      song.platform.name,
+      raw,
+      format.name,
+    ),
     lrclib: (queried) =>
         ref.read(lrclibClientProvider).fetchSyncedLyrics(queried),
     timeout: lyricsRequestTimeout,
@@ -201,6 +202,7 @@ Future<LyricsDocument?> resolveLyricsForSong({
   Future<void> Function(String raw, LyricsFormat format)? writeCache,
   Duration timeout = lyricsRequestTimeout,
   Duration cacheTtl = lyricsCacheTtl,
+  bool preferCached = true,
   DateTime Function()? now,
   Future<String?> Function(Song song)? lrclib,
 }) async {
@@ -216,7 +218,7 @@ Future<LyricsDocument?> resolveLyricsForSong({
     }
     // 本地没有可用歌词（没有 .lrc / 内嵌歌词，或解析不出时间轴）时才兜底：
     // 用户自己的文件常常一个歌词文件都没有，这里正是 LRCLIB 该上场的地方。
-    return _lrclibFallback(lrclib, song, null);
+    // Sidecar/embedded lyrics win; otherwise consult the persisted fallback.
   }
 
   final cached = cachedLyrics;
@@ -229,16 +231,30 @@ Future<LyricsDocument?> resolveLyricsForSong({
           now: (now ?? DateTime.now)(),
           ttl: cacheTtl,
         );
-    if (expired) {
+    if (expired && !preferCached) {
       debugPrint('LyricsProvider: cached lyrics older than $cacheTtl');
     } else {
       final format = _parseLyricsFormat(cached.format);
+      var content = cached.content;
+      var source = lyricsSourceForPlatform(song.platform);
+      try {
+        if (content.startsWith(_cacheEnvelope)) {
+          final data =
+              jsonDecode(content.substring(_cacheEnvelope.length)) as Map;
+          content = data['content'] as String;
+          source = LyricsSource.values.firstWhere(
+            (s) => s.name == data['source'],
+          );
+        }
+      } catch (_) {
+        content = '';
+      }
       final document = LyricsDocument.parse(
-        cached.content,
+        content,
         format,
         // The row is keyed by the *owning* platform, so a cross-source fallback
         // that was cached under it still reports the owning platform here.
-        source: lyricsSourceForPlatform(song.platform),
+        source: source,
       );
       if (document.lines.isNotEmpty) {
         // Rows written before the yrc-translation fix hold the word-by-word
@@ -250,7 +266,7 @@ Future<LyricsDocument?> resolveLyricsForSong({
         final legacyBareYrc =
             format == LyricsFormat.yrc &&
             !document.lines.any((line) => line.hasTranslation);
-        if (!legacyBareYrc) {
+        if (preferCached || !legacyBareYrc) {
           return document;
         }
         debugPrint(
@@ -260,6 +276,10 @@ Future<LyricsDocument?> resolveLyricsForSong({
       }
       debugPrint('LyricsProvider: cached lyrics parsed empty, refetching');
     }
+  }
+
+  if (song.platform == PlatformType.local) {
+    return _lrclibFallback(lrclib, song, null, writeCache: writeCache);
   }
 
   final outcome = await _fetchLyricsWithFallback(
@@ -278,7 +298,12 @@ Future<LyricsDocument?> resolveLyricsForSong({
   // LRCLIB 兜底：平台没给出可用歌词、或时间轴明显不对时才问一次。
   // 它在 **抛错之前** 有一次机会：三个平台都失败时，能从 LRCLIB 拿到词就
   // 不该给用户看"歌词加载失败"。
-  final fallbackDocument = await _lrclibFallback(lrclib, song, document);
+  final fallbackDocument = await _lrclibFallback(
+    lrclib,
+    song,
+    document,
+    writeCache: writeCache,
+  );
   if (fallbackDocument != null) return fallbackDocument;
 
   if (document == null) {
@@ -302,12 +327,15 @@ Future<LyricsDocument?> resolveLyricsForSong({
     final translation = track.format == LyricsFormat.lrc
         ? raw.bundle.translation
         : raw.bundle.yrcTranslation;
-    final cachedContent =
-        translation != null && translation.trim().isNotEmpty
-            ? '${track.content}\n$translation'
-            : track.content;
-    unawaited(
-      _writeCacheBestEffort(writeCache, cachedContent, track.format),
+    final cachedContent = translation != null && translation.trim().isNotEmpty
+        ? '${track.content}\n$translation'
+        : track.content;
+    await _writeCacheBestEffort(
+      writeCache,
+      raw.source == lyricsSourceForPlatform(song.platform)
+          ? cachedContent
+          : _cacheContent(cachedContent, raw.source),
+      track.format,
     );
   }
   return document;
@@ -319,14 +347,14 @@ Future<LyricsDocument?> resolveLyricsForSong({
 /// when the platform path already has an answer — and never hide the platform's
 /// own error when it does not.
 ///
-/// The result is deliberately **not** cached: the cache row is keyed by the
-/// owning platform, so storing a fallback under it would both mislabel the next
-/// "来源" badge and stop the platform from being retried on the next run.
+/// Persist fallback lyrics with their actual source so offline playback keeps
+/// both the text and a truthful source badge.
 Future<LyricsDocument?> _lrclibFallback(
   Future<String?> Function(Song song)? lrclib,
   Song song,
-  LyricsDocument? current,
-) async {
+  LyricsDocument? current, {
+  Future<void> Function(String, LyricsFormat)? writeCache,
+}) async {
   if (lrclib == null) return null;
   if (!shouldAskLrclib(current, songDuration: song.duration)) return null;
   try {
@@ -337,12 +365,24 @@ Future<LyricsDocument?> _lrclibFallback(
       LyricsFormat.lrc,
       source: LyricsSource.lrclib,
     );
-    return document.lines.isEmpty ? null : document;
+    if (document.lines.isEmpty) return null;
+    if (writeCache != null) {
+      await _writeCacheBestEffort(
+        writeCache,
+        _cacheContent(lyrics, LyricsSource.lrclib),
+        LyricsFormat.lrc,
+      );
+    }
+    return document;
   } catch (e) {
     debugPrint('LyricsProvider: LRCLIB fallback failed: $e');
     return null;
   }
 }
+
+const _cacheEnvelope = 'mconnect-lyrics-v1\n';
+String _cacheContent(String content, LyricsSource source) =>
+    _cacheEnvelope + jsonEncode({'source': source.name, 'content': content});
 
 Future<void> _writeCacheBestEffort(
   Future<void> Function(String raw, LyricsFormat format) writeCache,
@@ -350,7 +390,7 @@ Future<void> _writeCacheBestEffort(
   LyricsFormat format,
 ) async {
   try {
-    await writeCache(raw, format);
+    await writeCache(raw, format).timeout(const Duration(seconds: 2));
   } catch (e, s) {
     // Cache write failures are reported but never propagate: the lyrics were
     // already fetched and must still be shown.
@@ -414,10 +454,7 @@ Future<_LyricsFetchOutcome> _fetchLyricsWithFallback({
   return _LyricsFetchOutcome(errors: errors, answered: answered);
 }
 
-MusicPlatform? _platformFor(
-  PlatformType type,
-  List<MusicPlatform> platforms,
-) {
+MusicPlatform? _platformFor(PlatformType type, List<MusicPlatform> platforms) {
   for (final platform in platforms) {
     if (platform.platformType == type) return platform;
   }
@@ -468,14 +505,18 @@ Future<Song?> _searchEquivalentSong(
     final keyword = '${song.name} ${song.artists.map((a) => a.name).join(' ')}'
         .trim();
     if (keyword.isEmpty) return null;
-    final candidates = await platform.search(keyword, limit: 10).timeout(timeout);
+    final candidates = await platform
+        .search(keyword, limit: 10)
+        .timeout(timeout);
     final key = song.dedupeKey;
     for (final candidate in candidates) {
       if (candidate.dedupeKey == key) return candidate;
     }
     return null;
   } catch (e) {
-    debugPrint('LyricsProvider: ${platform.platformType.name} search failed: $e');
+    debugPrint(
+      'LyricsProvider: ${platform.platformType.name} search failed: $e',
+    );
     errors.add(e);
     return null;
   }
