@@ -380,6 +380,108 @@ bool ValidatePlayerMenu(QGuiApplication& app, QQuickWindow& window,
       page->property("orientation").toInt(), menu->width(), contentY);
   return true;
 }
+bool ValidatePlayerProgress(QGuiApplication& app, QQuickWindow& window,
+                            QQuickRenderControl& layout, QQuickItem* page, QObject* core) {
+  auto* slider = page->findChild<QQuickItem*>("playbackProgress");
+  if (!slider || !slider->isEnabled() || !slider->isVisible()) {
+    qCritical("SILICA_PLAYER_PROGRESS_FAIL unavailable-slider");
+    return false;
+  }
+  const QVariant originalState = core->property("state");
+  auto state = originalState.toMap();
+  const auto updatePosition = [&](int position, bool playing) {
+    state["position"] = position;
+    state["playing"] = playing;
+    core->setProperty("state", state);
+    app.processEvents();
+    layout.polishItems();
+  };
+  unsigned long timestamp = 1000;
+  const auto pointer = [&](QEvent::Type type, double fraction) {
+    const double left = slider->property("leftMargin").toDouble();
+    const double right = slider->property("rightMargin").toDouble();
+    const QPointF local(left + fraction * (slider->width() - left - right), slider->height() / 2);
+    const QPointF position = slider->mapToItem(window.contentItem(), local);
+    QMouseEvent event(type, position, type == QEvent::MouseMove ? Qt::NoButton : Qt::LeftButton,
+        type == QEvent::MouseButtonRelease ? Qt::NoButton : Qt::LeftButton, Qt::NoModifier);
+    event.setTimestamp(timestamp);
+    timestamp += 30;
+    QCoreApplication::sendEvent(&window, &event);
+    app.processEvents();
+    layout.polishItems();
+  };
+  const auto followsPosition = [&](int position) {
+    const QString expected = QString::number(position / 60000) + ":" +
+        QString::number(position / 1000 % 60).rightJustified(2, '0') + " / 3:00";
+    return qAbs(slider->property("value").toDouble() - position) < 1 &&
+        slider->property("valueText").toString() == expected;
+  };
+  for (bool playing : {true, false}) {
+    updatePosition(10000, playing);
+    if (!followsPosition(10000)) {
+      qCritical("SILICA_PLAYER_PROGRESS_FAIL initial-position");
+      return false;
+    }
+    for (double destination : {0.7, 0.2, 0.8, -0.2, 1.2}) {
+      const int requests = core->property("requestCount").toInt();
+      pointer(QEvent::MouseButtonPress, 0.4);
+      pointer(QEvent::MouseMove, 0.45);
+      pointer(QEvent::MouseMove, 0.5);
+      pointer(QEvent::MouseMove, destination);
+      if (!slider->property("down").toBool()) {
+        qCritical("SILICA_PLAYER_PROGRESS_FAIL drag-not-held width=%g height=%g", slider->width(), slider->height());
+        return false;
+      }
+      const double dragged = slider->property("value").toDouble();
+      updatePosition(12000, playing);
+      if (qAbs(slider->property("value").toDouble() - dragged) > 1 ||
+          core->property("requestCount").toInt() != requests) {
+        qCritical("SILICA_PLAYER_PROGRESS_FAIL changed-during-drag");
+        return false;
+      }
+      pointer(QEvent::MouseButtonRelease, destination);
+      const auto request = QJsonDocument::fromJson(core->property("lastRequest").toString().toUtf8()).toVariant().toMap();
+      const int sought = request.value("args").toMap().value("position").toInt();
+      if (slider->property("down").toBool() || core->property("requestCount").toInt() != requests + 1 ||
+          request.value("method") != "seek" || qAbs(sought - qRound(dragged)) > 1 ||
+          (destination < 0 && sought != 0) || (destination > 1 && sought != 180000)) {
+        qCritical("SILICA_PLAYER_PROGRESS_FAIL release playing=%d target=%g requested=%d", playing, destination, sought);
+        return false;
+      }
+      for (int position : {sought, qMin(180000, sought + 1000), qMin(180000, sought + 2000)}) {
+        updatePosition(position, playing);
+        if (!followsPosition(position) || core->property("requestCount").toInt() != requests + 1) {
+          qCritical("SILICA_PLAYER_PROGRESS_FAIL follow playing=%d expected=%d actual=%g text=%s", playing, position,
+              slider->property("value").toDouble(), qPrintable(slider->property("valueText").toString()));
+          return false;
+        }
+      }
+    }
+    const int requests = core->property("requestCount").toInt();
+    pointer(QEvent::MouseButtonPress, 0.4);
+    pointer(QEvent::MouseMove, 0.5);
+    pointer(QEvent::MouseMove, 0.6);
+    updatePosition(13000, playing);
+    auto* grabber = window.mouseGrabberItem();
+    if (!grabber) return false;
+    grabber->ungrabMouse();
+    app.processEvents();
+    layout.polishItems();
+    if (!followsPosition(13000) || slider->property("down").toBool() ||
+        core->property("requestCount").toInt() != requests) {
+      qCritical("SILICA_PLAYER_PROGRESS_FAIL cancel value=%g down=%d", slider->property("value").toDouble(),
+          slider->property("down").toBool());
+      return false;
+    }
+    pointer(QEvent::MouseButtonRelease, 0.6);
+  }
+  core->setProperty("state", originalState);
+  app.processEvents();
+  layout.polishItems();
+  fprintf(stderr, "SILICA_PLAYER_PROGRESS_PASS orientation=%d playing paused repeated-forward-backward bounds cancel single-seek continued-time\n",
+      page->property("orientation").toInt());
+  return true;
+}
 bool ValidateDownloadRows(QObject* page) {
   auto* model = page->findChild<QAbstractItemModel*>("downloadTaskModel");
   if (!model) return false;
@@ -831,6 +933,20 @@ QtObject {
           !page->property("orientationTransitionRunning").toBool() &&
           page->width() > 0 && page->height() > 0;
     };
+    if (app.arguments().contains("--player-progress-only")) {
+      // The SDK's minimal platform has a 240x320 screen. Give the isolated
+      // phone page its normal usable viewport without presenting a window.
+      view.resize(720, 1280);
+      root->setWidth(720);
+      root->setHeight(1280);
+      validationWindow->resize(720, 1280);
+      settle();
+      auto* player = currentPage();
+      if (!player || player->objectName() != "playerPage" ||
+          !ValidatePlayerProgress(app, *validationWindow, *validationLayout, player, validationCore.get())) return 1;
+      fprintf(stderr, "SILICA_PLAYER_PROGRESS_VALIDATION_PASS\n");
+      return 0;
+    }
     for (int orientation : {1, 2, 4, 8, 1}) {
       if (!root->setProperty("deviceOrientation", orientation) || !settleOrientation(orientation)) return 1;
       for (int tab = 0; tab < 4; ++tab) {
@@ -896,6 +1012,7 @@ QtObject {
       if (!settleOrientation(orientation)) return 1;
       auto* player = currentPage();
       if (player->objectName() != "playerPage") return 1;
+      if (!ValidatePlayerProgress(app, *validationWindow, *validationLayout, player, validationCore.get())) return 1;
       for (bool showLyrics : {false, true}) {
         player->setProperty("showLyrics", showLyrics);
         app.processEvents();

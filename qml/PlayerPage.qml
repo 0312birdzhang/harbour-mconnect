@@ -151,13 +151,19 @@ Page {
                     y: page.isLandscape ? Math.max(0, (controlPane.height - height) / 2) : 0
                     Label { x: Theme.horizontalPageMargin; width: parent.width - 2 * x; text: app.errorText || core.state.error || ""; visible: text.length > 0; wrapMode: Text.Wrap; color: Theme.highlightColor; font.pixelSize: Theme.fontSizeSmall }
                     Slider {
+                        objectName: "playbackProgress"
                         width: parent.width
                         minimumValue: 0
                         maximumValue: Math.max(1, core.state.duration || 0)
                         value: core.state.position || 0
                         enabled: core.ready && !!core.state.song
                         valueText: app.time(value) + " / " + app.time(core.state.duration)
-                        onReleased: app.call("seek", {position: Math.round(value)})
+                        onReleased: {
+                            app.call("seek", {position: Math.round(value)})
+                            // Silica assigns value during dragging and release, removing its binding.
+                            value = Qt.binding(function() { return core.state.position || 0 })
+                        }
+                        onCanceled: value = Qt.binding(function() { return core.state.position || 0 })
                     }
                     Row {
                         objectName: "playbackButtons"

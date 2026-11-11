@@ -232,6 +232,8 @@ with tempfile.TemporaryDirectory(prefix='mconnect-rpm-check-') as temporary:
     assert 'objectName: "playerPageFlickable"' in player
     assert 'objectName: "playerMenu"' in player
     assert 'width: playerScroll.width' in player
+    assert 'objectName: "playbackProgress"' in player
+    assert player.count('value = Qt.binding(function() { return core.state.position || 0 })') == 2
     download = (qml / 'DownloadSongPage.qml').read_text()
     assert 'app.openDownloads()' in download
     assert 'page.enqueued && page.status === PageStatus.Active' in download
@@ -278,6 +280,7 @@ with tempfile.TemporaryDirectory(prefix='mconnect-rpm-check-') as temporary:
         b'SILICA_SEARCH_SELECTORS_PASS', b'SILICA_SEARCH_SINGLE_PANE_PASS',
         b'SILICA_HEADER_CUTOUT_PASS',
         b'SILICA_SEARCH_LAYOUT_PASS', b'SILICA_PLAYER_MENU_PASS',
+        b'SILICA_PLAYER_PROGRESS_VALIDATION_PASS', b'SILICA_PLAYER_PROGRESS_PASS',
         b'SILICA_DOWNLOAD_NAVIGATION_PASS', b'SILICA_VALIDATION_ISOLATED_CORE_PASS',
         b'SILICA_ABOUT_CONTENT_PASS', b'SILICA_ABOUT_NAVIGATION_PASS',
         b'MCONNECT_NATIVE_LYRICS_CACHE_HIT', b'GetPlayListDetail', b'GetUserFavSongList',
