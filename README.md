@@ -49,7 +49,7 @@ $env:RPM_OUTPUT = (Join-Path (Get-Location).Path 'RPMS').Replace('\', '/')
 & 'C:\Program Files\Git\bin\bash.exe' 'D:/code/sfos-skills/tools/sailfish-wsl-build.sh' '.'
 ```
 
-产物为 `RPMS/harbour-mconnect-1.6.0-54.aarch64.rpm`。安装应用 RPM 后，从应用列表启动
+产物为 `RPMS/harbour-mconnect-1.6.0-55.aarch64.rpm`。安装应用 RPM 后，从应用列表启动
 Mconnect。两个桌面入口由系统启动器按权限配置运行在 Sailjail 内，后台 D-Bus
 激活显式调用 Sailjail 启动原生 ELF。
 桌面配置声明 `Internet`、`Audio`、`Music`、`Documents`、`Downloads` 和
@@ -62,7 +62,7 @@ SDK 路径、暂存目录和原生包布局见构建说明。
 在含有 `rpm`、`rpm2cpio`、`cpio`、`readelf` 和 Python 3 的环境中校验实际产物。
 
 ```sh
-python3 tools/verify-rpm.py RPMS/harbour-mconnect-1.6.0-54.aarch64.rpm
+python3 tools/verify-rpm.py RPMS/harbour-mconnect-1.6.0-55.aarch64.rpm
 ```
 
 原生实现的主机测试、SDK 构建和包校验结果记录在迁移审计中。`VALIDATION.md`
@@ -85,7 +85,7 @@ Silica 入口使用原生 QML 主窗口和 cover，C++ 业务核心在同一进�
 
 哔哩哔哩音乐基于 [BiliMusic](https://github.com/eason919191/BiliMusic) 的 Web API 适配；支持范围见 [docs/bilibili.md](docs/bilibili.md)。
 
-当前 RPM 版本为 `1.6.0-54`。音乐库“设置”下方的“关于”页面显示应用图标、
+当前 RPM 版本为 `1.6.0-55`。音乐库“设置”下方的“关于”页面显示应用图标、
 名称、版本、开发者 BirdZhang、许可证及 Mconnect-Music_connect、BiliMusic
 参考项目。点击参考项目打开其 GitHub 页面。版本从 RPM 构建信息读取，横屏
 采用左右两栏，内容随页面滚动。页面下方显示四段免责声明，正文自动换行。
@@ -104,6 +104,6 @@ cover 的两个操作按钮各有一个紧贴图标的
 `#808080` 灰色圆底，整体大小为系统小图标的 1.5 倍。左、右按钮各向外移
 `Theme.paddingSmall`，显示尺寸按 cover 大小补偿缩放。透明 PNG 按钮由
 cover 页面绘制，点击通过 `CoverActionList` 触发。
-关闭手机窗口会释放 QML 页面。播放、下载等后台任务和车载会话保留业务核心，任务与所有会话结束后经过十秒空闲期退出。
+未连接投屏时关闭手机窗口会退出应用，并正常结束播放和后台任务。连接期间关闭窗口会释放 QML 页面并保留车载业务核心，最后一个车载会话结束后退出。仅由投屏启动且从未打开手机窗口的后端也会在断连后退出。断连时手机窗口仍打开则保留应用。首次后台启动等待车载会话时使用十秒空闲期。
 窗口生命周期协议测试可用 `MCONNECT_BUILD_COVER_TESTS=ON` 构建
 `mconnect_window_lifecycle_test`，使用隔离的模拟播放服务。

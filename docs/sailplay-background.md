@@ -1,6 +1,6 @@
 # Sailplay native background playback
 
-Updated on 2026-11-11 for the native release 54 source.
+Updated on 2026-11-11 for the native release 55 source.
 `harbour-mconnect --background` enters `mconnect-silica`, which initializes
 native storage, account services, the playback runtime and MPRIS. Playback
 memory restores paused. MPRIS Play and explicit UI controls use the same native
@@ -29,10 +29,11 @@ the same foreground presentation path. Artwork uses the native private cache
 and loopback decoder.
 
 Closing the foreground view hides the phone window, releases its QML tree and
-suspends UI polling. The native runtime remains alive while a Sailplay session,
-playback, download queue, login operation, local scan, lyric load or accepted
-core/bridge request needs it. Hidden car sessions retain their lease. Pausing
-playback keeps a leased core paused.
+suspends UI polling. Without a Sailplay session, explicit close exits the
+application through normal runtime shutdown, including during playback or
+other native work. A car session retains the backend after the phone view
+closes. Hidden car sessions retain their lease. Pausing playback keeps a
+leased core paused.
 
 `org.sailplay.App1` is exported before the root application name is acquired.
 Caller-owned `org.sailplay.Session1` objects provide revisioned media snapshots,
@@ -46,10 +47,13 @@ temporary name through backend replacement and release it when they close.
 The scoped members include the standard `PropertiesChanged` notification for
 Session1 `Active` alongside state, request completion and navigation guidance.
 
-When the phone presentation, sessions and work have all ended, a ten-second
-idle grace permits exit. The timer inspects current work and leases again at
-its deadline. Foreground activation cancels pending presentation release and
-idle exit. Shutdown releases MPRIS, closes native work, unregisters the Silica
+A backend that has served a car exits when its last session ends if the phone
+view is closed or has never been opened. A phone view still open at disconnect
+keeps the application running. Initial background startup retains the
+ten-second idle grace and ongoing-work check while waiting for its first
+session. The timer inspects current work and leases again at its deadline.
+Foreground activation cancels pending presentation release and idle exit.
+Shutdown releases MPRIS, closes native work, unregisters the Silica
 objects/name and finally releases the root activation name.
 
 The lifecycle integration and SDK source overlay are published with Sailplay.

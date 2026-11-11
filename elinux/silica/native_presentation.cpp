@@ -26,16 +26,23 @@ void NativePresentation::monitor(int idleMs, int pollMs) {
 }
 
 bool NativePresentation::canExit() const {
-  return !requested && (!keepAlive || !keepAlive());
+  return !requested && (!keepAlive || !keepAlive()) &&
+      (closedByUser_ || hadLease_ || !backgroundWork || !backgroundWork());
 }
 
 void NativePresentation::evaluate() {
+  if (keepAlive && keepAlive()) hadLease_ = true;
   if (!canExit()) idle_.stop();
+  else if (closedByUser_ || hadLease_) {
+    idle_.stop();
+    emit idle();
+  }
   else if (!idle_.isActive()) idle_.start();
 }
 
 void NativePresentation::Show() {
   requested = true;
+  closedByUser_ = false;
   ++generation_;
   idle_.stop();
   if (view_ && (!prepare || prepare())) {
@@ -49,6 +56,7 @@ bool NativePresentation::eventFilter(QObject* watched, QEvent* event) {
   if (watched != view_ || event->type() != QEvent::Close) return QObject::eventFilter(watched, event);
   static_cast<QCloseEvent*>(event)->ignore();
   requested = false;
+  closedByUser_ = true;
   view_->hide();
   const auto generation = ++generation_;
   // Release the QML tree after its close event returns. A foreground activation

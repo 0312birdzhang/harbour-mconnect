@@ -16,8 +16,10 @@ class NativePresentation : public QObject {
   bool requested = false;
   std::function<bool()> prepare;
   std::function<bool()> keepAlive;
+  std::function<bool()> backgroundWork;
  public slots:
   void Show();
+  void evaluate();
  signals:
   void presentationClosed();
   void idle();
@@ -27,6 +29,7 @@ class NativePresentation : public QObject {
   QPointer<QQuickView> view_;
   QTimer poll_, idle_;
   quint64 generation_ = 0;
+  bool closedByUser_ = false;
+  bool hadLease_ = false;
   bool canExit() const;
-  void evaluate();
 };

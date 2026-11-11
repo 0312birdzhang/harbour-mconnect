@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
       QEventLoop awaiting;
       QTimer::singleShot(70, &awaiting, &QEventLoop::quit);
       awaiting.exec();
-      CHECK(exits == previous && live->hasOngoingWork());
+      CHECK(exits > previous && live->hasOngoingWork());
       return QVariantMap{{"backend", "cpp-qq-catalog"}, {"songs", QVariantList{}}};
     }
     return QVariantMap{{"backend", "cpp-qq-account"}, {"qrKey", "fixture-key"}, {"qrUrl", "https://example.test/qr"},
@@ -94,7 +94,9 @@ int main(int argc, char** argv) {
     if (view.source().isEmpty()) view.setSource(QUrl::fromLocalFile(qml.fileName()));
     return view.status() != QQuickView::Error;
   };
-  presentation.keepAlive = [&]() { return provider.sessionCount() > 0 || runtime.hasOngoingWork(); };
+  presentation.keepAlive = [&]() { return provider.sessionCount() > 0; };
+  presentation.backgroundWork = [&]() { return runtime.hasOngoingWork(); };
+  QObject::connect(&provider, &SailplayProvider::sessionsChanged, &presentation, &NativePresentation::evaluate);
   QObject::connect(&presentation, &NativePresentation::idle, [&]() { ++exits; });
   presentation.monitor(25, 5);
   const auto opened = call("org.sailfishos.Mconnect", "/org/sailplay/v1/App", "org.sailplay.App1", "OpenSession", {"car", QStringList{"media"}});
@@ -136,8 +138,7 @@ int main(int argc, char** argv) {
   const auto searched = call("org.sailfishos.Mconnect.Core", "/org/sailfishos/Mconnect/Core", "org.sailfishos.Mconnect.Core", "Request",
       {"search", "{\"platform\":\"qq\",\"query\":\"fixture\"}"});
   CHECK(observedAcceptedWork && searched.type() == QDBusMessage::ReplyMessage);
-  CHECK(exits == beforeAccepted && !presentation.requested && !view.rootObject());
-  CHECK(waitFor([&]() { return exits > beforeAccepted; }));
+  CHECK(exits > beforeAccepted && !presentation.requested && !view.rootObject());
   // Scanning is retained until the worker has joined and imported its result.
   CHECK(runtime.dispatch("localScan", {{"directory", temporary.path()}}).toMap().value("started").toBool());
   CHECK(runtime.hasOngoingWork());

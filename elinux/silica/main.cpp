@@ -1114,8 +1114,10 @@ QtObject {
   if (!mpris.start()) { qCritical("MCONNECT_NATIVE_MPRIS_START_FAILED"); return 1; }
   QObject::connect(&control, &NativePresentation::presentationClosed, &bridge, &CoreBridge::suspend);
   control.keepAlive = [&]() {
-    return provider.sessionCount() > 0 || runtime->hasOngoingWork() || bridge.hasPendingWork();
+    return provider.sessionCount() > 0;
   };
+  control.backgroundWork = [&]() { return runtime->hasOngoingWork() || bridge.hasPendingWork(); };
+  QObject::connect(&provider, &SailplayProvider::sessionsChanged, &control, &NativePresentation::evaluate);
   const auto publish = [&]() {
     auto media = runtime->player().snapshot();
     // D-Bus variants require a concrete type, including before a song is loaded.
