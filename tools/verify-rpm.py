@@ -3,6 +3,7 @@
 from pathlib import Path, PurePosixPath
 import hashlib
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -15,7 +16,10 @@ def rpm(*arguments):
 
 
 identity = rpm('-qp', '--qf', '%{NAME} %{VERSION} %{RELEASE} %{ARCH}').split()
-assert identity == ['harbour-mconnect', '1.6.0', '53', 'aarch64'], identity
+specification = (Path(__file__).resolve().parents[1] / 'rpm/harbour-mconnect.spec').read_text()
+expected_identity = [re.search(r'^' + field + r':\s*(\S+)', specification, re.MULTILINE).group(1)
+                     for field in ('Name', 'Version', 'Release')] + ['aarch64']
+assert identity == expected_identity, identity
 files = rpm('-qlp').splitlines()
 for name in files:
     assert '..' not in PurePosixPath(name).parts, name
@@ -142,6 +146,7 @@ with tempfile.TemporaryDirectory(prefix='mconnect-rpm-check-') as temporary:
     assert 'ExecDBus=' not in compatibility_desktop.read_text()
     desktop = root / 'usr/share/applications/harbour-mconnect-silica.desktop'
     assert 'ExecDBus=/usr/bin/harbour-mconnect-silica --background' in desktop.read_text()
+    assert 'X-Sailplay-ApplicationId=harbour-mconnect' in desktop.read_text()
     for application in ('harbour-mconnect', 'harbour-mconnect-silica'):
         desktop = root / f'usr/share/applications/{application}.desktop'
         text = desktop.read_text()
@@ -151,7 +156,7 @@ with tempfile.TemporaryDirectory(prefix='mconnect-rpm-check-') as temporary:
             'X-Sailplay-BackgroundService=org.sailfishos.Mconnect',
             'X-Sailplay-ApiVersion=1', 'X-Sailplay-Service=org.sailfishos.Mconnect',
             'X-Sailplay-ObjectPath=/org/sailplay/v1/App',
-            'X-Sailplay-Presentation=template', 'X-Sailplay-Capabilities=media;',
+            'X-Sailplay-Presentation=template', 'X-Sailplay-Capabilities=media;content;',
             'Categories=AudioVideo;Audio;Music;Player;', 'Icon=harbour-mconnect',
             'X-Nemo-Application-Type=generic', '[X-Sailjail]',
             'OrganizationName=org.sailfishos', 'ApplicationName=Mconnect',
@@ -260,6 +265,7 @@ with tempfile.TemporaryDirectory(prefix='mconnect-rpm-check-') as temporary:
     native = native_path.read_bytes()
     for marker in (
         b'MCONNECT_NATIVE_CORE_STARTED', b'MCONNECT_NATIVE_BACKGROUND_READY',
+        b'org.sailplay.Content1', b'content.browse', b'content.search', b'content.selectSong',
         b'org.mpris.MediaPlayer2.harbour_mconnect', b'/org/mpris/MediaPlayer2/track/t',
         b'/org/sailfishos/Mconnect/Core', b'/org/sailfishos/Mconnect/Platforms',
         b'/org/sailfishos/Mconnect/Artwork', b'loginBegin', b'localScan',

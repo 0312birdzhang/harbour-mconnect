@@ -49,7 +49,7 @@ $env:RPM_OUTPUT = (Join-Path (Get-Location).Path 'RPMS').Replace('\', '/')
 & 'C:\Program Files\Git\bin\bash.exe' 'D:/code/sfos-skills/tools/sailfish-wsl-build.sh' '.'
 ```
 
-产物为 `RPMS/harbour-mconnect-1.6.0-53.aarch64.rpm`。安装应用 RPM 后，从应用列表启动
+产物为 `RPMS/harbour-mconnect-1.6.0-54.aarch64.rpm`。安装应用 RPM 后，从应用列表启动
 Mconnect。两个桌面入口由系统启动器按权限配置运行在 Sailjail 内，后台 D-Bus
 激活显式调用 Sailjail 启动原生 ELF。
 桌面配置声明 `Internet`、`Audio`、`Music`、`Documents`、`Downloads` 和
@@ -62,7 +62,7 @@ SDK 路径、暂存目录和原生包布局见构建说明。
 在含有 `rpm`、`rpm2cpio`、`cpio`、`readelf` 和 Python 3 的环境中校验实际产物。
 
 ```sh
-python3 tools/verify-rpm.py RPMS/harbour-mconnect-1.6.0-53.aarch64.rpm
+python3 tools/verify-rpm.py RPMS/harbour-mconnect-1.6.0-54.aarch64.rpm
 ```
 
 原生实现的主机测试、SDK 构建和包校验结果记录在迁移审计中。`VALIDATION.md`
@@ -85,7 +85,7 @@ Silica 入口使用原生 QML 主窗口和 cover，C++ 业务核心在同一进�
 
 哔哩哔哩音乐基于 [BiliMusic](https://github.com/eason919191/BiliMusic) 的 Web API 适配；支持范围见 [docs/bilibili.md](docs/bilibili.md)。
 
-当前 RPM 版本为 `1.6.0-53`。音乐库“设置”下方的“关于”页面显示应用图标、
+当前 RPM 版本为 `1.6.0-54`。音乐库“设置”下方的“关于”页面显示应用图标、
 名称、版本、开发者 BirdZhang、许可证及 Mconnect-Music_connect、BiliMusic
 参考项目。点击参考项目打开其 GitHub 页面。版本从 RPM 构建信息读取，横屏
 采用左右两栏，内容随页面滚动。页面下方显示四段免责声明，正文自动换行。

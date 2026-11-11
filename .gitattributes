@@ -21,3 +21,5 @@ CMakeLists.txt text eol=lf
 *.cpp text eol=lf
 *.qml text eol=lf
 *.xml text eol=lf
+*.profile text eol=lf
+*.spec text eol=lf

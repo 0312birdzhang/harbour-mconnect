@@ -32,6 +32,8 @@
 #include "native_presentation.h"
 #include "native_runtime.h"
 #include "sailplayprovider.h"
+#include "sailplaycontent.h"
+#include "native_car_content.h"
 
 namespace {
 volatile std::sig_atomic_t stopping = 0;
@@ -435,7 +437,8 @@ int main(int argc, char** argv) {
       ? app.arguments().at(validateIndex + 1) : "/usr/share/harbour-mconnect/qml";
   auto bus = QDBusConnection::sessionBus();
   NativeActivation activation;
-  SailplayProvider provider(bus, "harbour-mconnect", {}, {"media"});
+  SailplayProvider provider(bus, "harbour-mconnect", {{"content", SailplayContent::page("root", "Mconnect")}}, {"media", "content"});
+  NativeCarContent carContent(provider);
   NativePresentation control;
   // Export the SDK object before acquiring the activatable application name.
   // Cold-start clients can open their lease as soon as ownership is announced.
@@ -1117,9 +1120,11 @@ QtObject {
     auto media = runtime->player().snapshot();
     // D-Bus variants require a concrete type, including before a song is loaded.
     media["song"] = media.value("song").toMap();
-    provider.publish({{"media", media}});
+    provider.publish({{"media", media}, {"content", carContent.root()}});
   };
+  carContent.attach(runtime->player());
   QObject::connect(&runtime->player(), &NativePlayer::changed, &provider, publish);
+  QObject::connect(&runtime->player(), &NativePlayer::queueChanged, &provider, publish);
   publish();
   QObject::connect(&control, &NativePresentation::idle, &app, [&]() {
     qInfo("MCONNECT_NATIVE_IDLE_EXIT");

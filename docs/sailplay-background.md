@@ -1,6 +1,6 @@
 # Sailplay native background playback
 
-Updated on 2026-11-10 for the native release 53 source.
+Updated on 2026-11-11 for the native release 54 source.
 `harbour-mconnect --background` enters `mconnect-silica`, which initializes
 native storage, account services, the playback runtime and MPRIS. Playback
 memory restores paused. MPRIS Play and explicit UI controls use the same native
@@ -57,3 +57,18 @@ The guarded integration script checks the native release 51 source files and
 preserves unrelated migration work. Installed verification is recorded in
 Sailplay's `todo.md`. The earlier `sailplay-background-validation.md` records
 historical packaged-host evidence.
+
+## Content browsing
+
+Release 54 adds Content1 to the application's existing service and car leases.
+Sailplay's music view offers Browse, which shows the current native playback
+queue. Search filters queue song and artist names, and pagination returns up
+to fifty rows per reply. Empty queues and empty search results have explicit
+status messages. Selecting a row checks its index and platform/song identity
+against the current queue before using the existing player selection operation.
+
+The host keeps its browsing history and search results in its own presentation.
+Queue changes advance the catalog version. Playback position updates retain
+that version, so the list can stay in place during playback. Standard playback
+controls continue through MPRIS. The Sailjail profile grants directed
+ContentChanged updates to the SDK clients' temporary names.

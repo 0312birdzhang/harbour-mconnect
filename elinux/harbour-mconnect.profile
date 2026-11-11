@@ -6,6 +6,7 @@ dbus-user.own org.sailfishos.Mconnect.Silica
 dbus-user.call org.sailplay.Client.*=org.sailplay.Session1.StateChanged@/org/sailplay/v1/*
 dbus-user.call org.sailplay.Client.*=org.sailplay.Session1.RequestFinished@/org/sailplay/v1/*
 dbus-user.call org.sailplay.Client.*=org.sailplay.Navigation1.GuidanceChanged@/org/sailplay/v1/*
+dbus-user.call org.sailplay.Client.*=org.sailplay.Content1.ContentChanged@/org/sailplay/v1/*
 dbus-user.call org.sailplay.Client.*=org.freedesktop.DBus.Properties.PropertiesChanged@/org/sailplay/v1/*
 
 # Silica reads the active profile and its feedback settings.

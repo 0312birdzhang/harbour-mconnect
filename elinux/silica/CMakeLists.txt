@@ -5,6 +5,7 @@ add_library(mconnect_native_core STATIC
   native_artwork.cpp
   native_bilibili.cpp
   native_catalog.cpp
+  native_car_content.cpp
   native_content.cpp
   native_core.cpp
   native_database.cpp
@@ -42,6 +43,7 @@ target_link_libraries(mconnect_native_core PUBLIC Qt5::Gui Qt5::DBus Qt5::Networ
 
 set(MCONNECT_SAILPLAY_SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../sailplay-sdk/sdk/qt" CACHE PATH "Sailplay Qt SDK source")
 add_subdirectory("${MCONNECT_SAILPLAY_SDK_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/sailplay-sdk")
+target_link_libraries(mconnect_native_core PUBLIC sailplay_sdk_provider)
 install(FILES "${MCONNECT_SAILPLAY_SDK_DIR}/../../LICENSE" DESTINATION share/licenses/harbour-mconnect RENAME sailplay-sdk-LICENSE)
 
 add_library(mconnect_native_ui STATIC bridge.cpp bridge.h)
@@ -64,7 +66,7 @@ if(MCONNECT_BUILD_TESTS OR MCONNECT_BUILD_COVER_TESTS)
   foreach(module qq_account qq kugou kugou_content kugou_account kugou_library
       bilibili account catalog content platforms storage music library core_service
       downloads login local_music lyric_document lyric_loader player runtime source_match mpris
-      ui artwork lyrics lyrics_bridge core_transfer presentation lifecycle)
+      ui artwork lyrics lyrics_bridge core_transfer presentation lifecycle car_content)
     add_executable(mconnect_native_${module}_test ../../test/native_${module}_test.cc)
     apply_standard_settings(mconnect_native_${module}_test)
     target_compile_options(mconnect_native_${module}_test PRIVATE -Wno-misleading-indentation)

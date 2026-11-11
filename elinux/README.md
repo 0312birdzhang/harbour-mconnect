@@ -36,7 +36,7 @@ Keep `rpm/harbour-mconnect.yaml` synchronized with its `.yaml.in` template.
 Spectacle retains the custom CMake build and install commands and changelog
 in `rpm/harbour-mconnect.spec`. CMake builds in `build/native` and installs
 through the RPM buildroot. The package identity is
-`harbour-mconnect-1.6.0-53.aarch64`. The target's `/etc/os-release` reports
+`harbour-mconnect-1.6.0-54.aarch64`. The target's `/etc/os-release` reports
 Sailfish OS `5.1.0.11`; runtime dependency versions are recorded in the audit.
 
 ## Package verification
@@ -45,7 +45,7 @@ Run the verifier in an environment containing `rpm`, `rpm2cpio`, `cpio`,
 `readelf` and Python 3, supplying the actual generated RPM path.
 
 ```sh
-python3 tools/verify-rpm.py /path/to/harbour-mconnect-1.6.0-53.aarch64.rpm
+python3 tools/verify-rpm.py /path/to/harbour-mconnect-1.6.0-54.aarch64.rpm
 ```
 
 The package installs the native ELF as `/usr/bin/harbour-mconnect-silica` and
